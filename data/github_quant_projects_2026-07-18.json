@@ -1,0 +1,12 @@
+[
+  {"repo":"vnpy/vnpy","stars":43095,"forks":12135,"updated_at":"2026-07-18T14:54:24Z","license":"MIT","url":"https://github.com/vnpy/vnpy","role":"实盘交易框架/网关生态","fit":"高","notes":"适合学习事件驱动、网关、订单状态机、风控模块；不是策略收益项目。"},
+  {"repo":"ricequant/rqalpha","stars":6587,"forks":1766,"updated_at":"2026-07-18T12:10:42Z","license":"NOASSERTION","url":"https://github.com/ricequant/rqalpha","role":"回测与模拟交易框架","fit":"高","notes":"适合学习可扩展回测、账户模型、撮合和费用模型；不直接解决券商接入。"},
+  {"repo":"wbh604/UZI-Skill","stars":5556,"forks":783,"updated_at":"2026-07-18T14:30:36Z","license":"MIT","url":"https://github.com/wbh604/UZI-Skill","role":"A股/港股/美股AI分析规则库","fit":"中","notes":"适合借鉴多维分析和规则表达；需要警惕AI结论不可直接实盘。"},
+  {"repo":"1nchaos/adata","stars":4973,"forks":668,"updated_at":"2026-07-18T13:55:55Z","license":"Apache-2.0","url":"https://github.com/1nchaos/adata","role":"A股数据接口/数据库","fit":"高","notes":"适合补齐A股基础行情、概念、交易数据的数据层。"},
+  {"repo":"mpquant/Ashare","stars":3702,"forks":653,"updated_at":"2026-07-18T11:55:09Z","license":null,"url":"https://github.com/mpquant/Ashare","role":"轻量A股实时/历史行情接口","fit":"中高","notes":"适合早期研究和监控；实盘需验证数据稳定性与授权边界。"},
+  {"repo":"shy3130/tickflow-stock-panel","stars":2261,"forks":505,"updated_at":"2026-07-18T13:24:15Z","license":"MIT","url":"https://github.com/shy3130/tickflow-stock-panel","role":"A股选股+监控+回测工作台","fit":"中高","notes":"适合学习个人工作台、策略定制、监控和复盘产品形态。"},
+  {"repo":"khscience/OSkhQuant","stars":1432,"forks":414,"updated_at":"2026-07-18T08:58:12Z","license":"NOASSERTION","url":"https://github.com/khscience/OSkhQuant","role":"A股可视化回测/交易系统","fit":"中高","notes":"适合借鉴可视化回测、绩效报告和QMT相关思路。"},
+  {"repo":"zhanghan1990/zipline-chinese","stars":688,"forks":293,"updated_at":"2026-07-09T09:27:37Z","license":"Apache-2.0","url":"https://github.com/zhanghan1990/zipline-chinese","role":"Zipline A股本地化","fit":"中","notes":"适合学习A股交易日历、手续费、基准和数据适配。"},
+  {"repo":"ai4trade/XtQuant","stars":449,"forks":125,"updated_at":"2026-07-17T05:03:36Z","license":"MIT","url":"https://github.com/ai4trade/XtQuant","role":"QMT/xtquant接口封装和示例","fit":"高","notes":"适合学习QMT行情、交易接口和miniQMT实盘前置条件。"},
+  {"repo":"liqimore/quant-qmt-proxy","stars":196,"forks":86,"updated_at":"2026-07-15T13:20:17Z","license":"MIT","url":"https://github.com/liqimore/quant-qmt-proxy","role":"QMT跨平台代理服务","fit":"中高","notes":"适合Mac/Linux研究端通过Windows miniQMT桥接实盘执行。"}
+]
