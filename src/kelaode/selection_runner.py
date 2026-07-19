@@ -247,9 +247,15 @@ def _rank(config: ExperimentConfig, rows: list[dict]) -> dict:
                     raise ValueError("descending parameter tie-break requires a numeric parameter")
                 tie.append(-float(value))
             elif rule.startswith("metric_desc:"):
-                tie.append(-float(row["validation_metrics"].get(
-                    rule.split(":", 1)[1], float("-inf"))))
-            elif rule.startswith("metric:"): tie.append(float(row["validation_metrics"].get(rule.split(":",1)[1], float("inf"))))
+                metric = rule.split(":", 1)[1]
+                if metric not in row["validation_metrics"]:
+                    raise ValueError(f"tie-break metric is missing: {metric}")
+                tie.append(-float(row["validation_metrics"][metric]))
+            elif rule.startswith("metric:"):
+                metric = rule.split(":", 1)[1]
+                if metric not in row["validation_metrics"]:
+                    raise ValueError(f"tie-break metric is missing: {metric}")
+                tie.append(float(row["validation_metrics"][metric]))
             elif rule == "lower_complexity":
                 p = row["parameters"]
                 tie.append(int(p.get("trend_window") is not None) + int(p.get("volatility_lookback") is not None))

@@ -22,6 +22,16 @@ from .snapshot import SnapshotManifest, canonical_json
 
 EXPERIMENT_SCHEMA_VERSION = "2.0"
 
+# Metrics emitted for validation candidate ranking.  Tie-break names are
+# validated here, before a manifest is opened or a candidate is executed.
+SUPPORTED_VALIDATION_METRICS = frozenset({
+    "total_return", "cagr", "annualized_volatility", "sharpe", "sortino",
+    "calmar", "max_drawdown", "max_drawdown_duration", "win_rate",
+    "profit_factor", "turnover", "gross_exposure", "net_exposure",
+    "trade_count", "average_holding_period", "average_trade_return",
+    "target_concentration",
+})
+
 
 def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -178,6 +188,11 @@ class ExperimentConfig:
             raise ValueError("selection rules must be explicit and cannot reference test metrics")
         if any(not isinstance(x, str) or "test" in x.lower() for x in ties):
             raise ValueError("tie-break rules cannot reference test metrics")
+        for rule in ties:
+            if rule.startswith(("metric:", "metric_desc:")):
+                metric = rule.split(":", 1)[1]
+                if not metric or metric not in SUPPORTED_VALIDATION_METRICS:
+                    raise ValueError(f"unsupported validation tie-break metric: {metric!r}")
         if not isinstance(self.parameter_selection["parameter_constraints"], list):
             raise ValueError("parameter_constraints must be an array")
         metric_constraints = self.parameter_selection.get("metric_constraints", [])

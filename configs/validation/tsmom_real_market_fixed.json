@@ -121,7 +121,7 @@
     },
     "selection_objective": "sharpe",
     "tie_break_rules": [
-      "metric:max_drawdown_desc",
+      "metric_desc:max_drawdown",
       "metric:turnover",
       "metric:target_concentration",
       "parameter_desc:trend_lookback",

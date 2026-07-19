@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from kelaode.experiment import ExperimentConfig
+from kelaode.selection_runner import _rank
 from kelaode.time_series_trend import TimeSeriesTrendParameters
 from kelaode.validation_audit import default_validation_policy
 from kelaode.validation_judgment import evaluate_tsmom_judgment
@@ -40,8 +41,59 @@ def test_protocol_configs_strictly_load_with_exact_feasible_grid_and_no_hidden_p
     assert len(values) == len({json.dumps(x, sort_keys=True) for x in values}) == 72
     assert fixed.resource_limits["maximum_candidate_count"] == 72
     assert set(fixed.strategy_parameters) == set(fixed.parameter_selection["parameter_grid"]) == expected
+    expected_ties = ["metric_desc:max_drawdown", "metric:turnover",
+        "metric:target_concentration", "parameter_desc:trend_lookback",
+        "parameter_desc:rebalance_frequency", "canonical_parameters"]
+    assert fixed.parameter_selection["tie_break_rules"] == expected_ties
+    assert walk.parameter_selection["tie_break_rules"] == expected_ties
+    assert fixed.parameter_selection == walk.parameter_selection
     for value in values:
         TimeSeriesTrendParameters(**value)
+
+
+def _candidate(identifier, *, sharpe=1.0, drawdown=-.20, turnover=.20,
+               concentration=.30, trend=126, rebalance=5, buffer=.02):
+    return {"candidate_id": identifier, "eligible": True, "error": None,
+        "validation_metrics": {"sharpe": sharpe, "max_drawdown": drawdown,
+            "turnover": turnover, "target_concentration": concentration},
+        "parameters": {"trend_lookback": trend, "volatility_lookback": 21,
+            "rebalance_frequency": rebalance, "signal_buffer": buffer,
+            "maximum_active_assets": 3}}
+
+
+@pytest.mark.parametrize(("left", "right"), [
+    # Every winning row is deliberately worse on a later rule, proving that no
+    # earlier preregistered tie-break can be skipped.
+    (_candidate("higher-sharpe", sharpe=1.1, drawdown=-.30),
+     _candidate("lower-sharpe", sharpe=1.0, drawdown=-.10)),
+    (_candidate("less-drawdown", drawdown=-.10, turnover=.30),
+     _candidate("more-drawdown", drawdown=-.30, turnover=.10)),
+    (_candidate("lower-turnover", turnover=.10, concentration=.40),
+     _candidate("higher-turnover", turnover=.30, concentration=.20)),
+    (_candidate("lower-concentration", concentration=.20, trend=63),
+     _candidate("higher-concentration", concentration=.40, trend=252)),
+    (_candidate("longer-trend", trend=252, rebalance=5),
+     _candidate("shorter-trend", trend=63, rebalance=21)),
+    (_candidate("longer-rebalance", rebalance=21, buffer=.02),
+     _candidate("shorter-rebalance", rebalance=5, buffer=.00)),
+    (_candidate("canonical-first", buffer=.00),
+     _candidate("canonical-second", buffer=.02)),
+])
+def test_actual_candidate_ranking_follows_every_preregistered_rule(left, right):
+    config = ExperimentConfig.from_json(FIXED)
+    assert _rank(config, [right, left])["candidate_id"] == left["candidate_id"]
+
+
+def test_unknown_or_missing_tie_break_metric_is_rejected_not_defaulted():
+    raw = json.loads(FIXED.read_text())
+    raw["parameter_selection"]["tie_break_rules"][0] = "metric:max_drawdown_desc"
+    with pytest.raises(ValueError, match="unsupported validation tie-break metric"):
+        ExperimentConfig.from_json(json.dumps(raw))
+    config = ExperimentConfig.from_json(FIXED)
+    row = _candidate("missing")
+    del row["validation_metrics"]["max_drawdown"]
+    with pytest.raises(ValueError, match="tie-break metric is missing: max_drawdown"):
+        _rank(config, [row])
 
 
 def test_every_frozen_config_value_is_identity_affecting():
