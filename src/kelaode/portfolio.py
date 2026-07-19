@@ -262,7 +262,7 @@ class PortfolioBacktester:
             minimum_commission=getattr(self.fee_model, "minimum_commission", self.config.minimum_commission))
 
     def run(self, data: Mapping[str, Sequence[DailyBar]],
-            strategy: PortfolioStrategy) -> PortfolioBacktestResult:
+            strategy: PortfolioStrategy, *, execution_start: date | None = None) -> PortfolioBacktestResult:
         normalized = self._normalize(data)
         dates = sorted({bar.trade_date for bars in normalized.values() for bar in bars})
         metadata = {symbol: self.metadata.get(symbol, InstrumentMetadata(
@@ -298,7 +298,8 @@ class PortfolioBacktester:
             fills: list[Fill] = []
             codes: list[ReasonCode] = []
             executing_target: Mapping[str, float] = MappingProxyType({})
-            if pending is not None:
+            execution_enabled = execution_start is None or today >= execution_start
+            if pending is not None and execution_enabled:
                 executing_target = pending[1]
                 cash, serial = self._rebalance(
                     today, pending[0], pending[1], current, last_close, cash, state,
@@ -320,7 +321,9 @@ class PortfolioBacktester:
             hold = isinstance(raw_target, _HoldTargets)
             target = dict(raw_target)
             self._validate_target(target, normalized)
-            pending = None if hold else (today, MappingProxyType(target))
+            # History-only warm-up calls the strategy so indicators see the bars,
+            # but cannot queue orders or establish positions before eligibility.
+            pending = None if hold or not execution_enabled else (today, MappingProxyType(target))
             equities[today] = equity
             cash_curve[today] = cash
             position_curve[today] = MappingProxyType(dict(positions))

@@ -14,6 +14,7 @@
   "execution_parameters": {
     "execution_timing": "next_open"
   },
+  "experiment_mode": "run",
   "experiment_name": "example-momentum",
   "fee_parameters": {
     "commission_rate": 0.00025
@@ -40,5 +41,6 @@
   "universe": [
     "510300",
     "510500"
-  ]
+  ],
+  "warmup_policy": "none"
 }

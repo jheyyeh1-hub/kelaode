@@ -19,6 +19,7 @@ class StrategyRegistration:
 
     factory: StrategyFactory
     parse_parameters: ParameterParser
+    fit_applicable: bool = False
 
     def create(self, symbols: Sequence[str], raw_parameters: Mapping[str, Any]) -> PortfolioStrategy:
         return self.factory(tuple(symbols), self.parse_parameters(dict(raw_parameters)))
@@ -48,3 +49,16 @@ def create_strategy(name: str, symbols: Sequence[str], parameters: Mapping[str, 
     except KeyError as exc:
         raise ValueError(f"unregistered strategy_class: {name}") from exc
     return registration.create(symbols, parameters)
+
+
+def require_no_fit_strategy(name: str) -> None:
+    """Selection runners currently support only registered fixed-rule strategies."""
+    try:
+        registration = STRATEGY_REGISTRY[name]
+    except KeyError as exc:
+        raise ValueError(f"unregistered strategy_class: {name}") from exc
+    # Factories in the current registry create no-fit PortfolioStrategy objects.
+    # A future registration may explicitly expose fitting only with a complete
+    # fitted-state artifact protocol.
+    if getattr(registration, "fit_applicable", False):
+        raise ValueError("schema-2.0 selection currently rejects fittable strategies")

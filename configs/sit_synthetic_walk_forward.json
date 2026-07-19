@@ -12,6 +12,7 @@
     "max_single_weight": 1.0
   },
   "constructor_parameters": {},
+  "cost_analysis": {},
   "data_alignment_mode": "union",
   "data_manifest": "tests/fixtures/sit_snapshot/manifest.json",
   "data_root": "tests/fixtures/sit_snapshot",
@@ -21,24 +22,49 @@
     "execution_timing": "next_open",
     "lot_size": 100
   },
-  "experiment_mode": "run",
-  "experiment_name": "sit-schema-2-synthetic-integration",
+  "experiment_mode": "walk_forward",
+  "experiment_name": "sit-schema-2-synthetic-walk-forward",
   "fee_parameters": {
     "commission_rate": 0.001,
     "minimum_commission": 2.0
   },
   "initial_cash": 100000,
   "notes": "Deterministic synthetic integration fixture; no investment-performance claim",
-  "output_directory": "results/sit-synthetic",
+  "output_directory": "results/sit-synthetic-walk",
+  "parameter_selection": {
+    "failure_policy": "continue",
+    "minimum_observations": 2,
+    "objective_direction": "maximize",
+    "parameter_constraints": [],
+    "parameter_grid": {
+      "top_k": [
+        1,
+        2
+      ]
+    },
+    "selection_objective": "total_return",
+    "tie_break_rules": [
+      "canonical_parameters"
+    ]
+  },
   "portfolio_constructor": "strategy-native",
   "random_seed": 42,
+  "resource_limits": {
+    "execution": "serial",
+    "maximum_candidate_count": 2,
+    "maximum_folds": 10
+  },
   "schema_version": "2.0",
   "slippage_parameters": {
     "slippage_rate": 0.001
   },
   "split_definitions": {
-    "reason": "SIT is a fixed-rule strategy with no fitting stage in this integration exercise",
-    "type": "none"
+    "step_observations": 2,
+    "test_observations": 2,
+    "train_observations": 3,
+    "type": "rolling",
+    "validation_observations": 2,
+    "warmup_observations": 3
   },
   "start_date": "2024-01-24",
   "strategy_class": "SITMomentumRotationStrategy",
@@ -57,5 +83,5 @@
     "VOLATILE",
     "LATE"
   ],
-  "warmup_policy": "none"
+  "warmup_policy": "history_only"
 }

@@ -54,6 +54,12 @@ class ExperimentConfig:
     benchmark_definitions: Mapping[str, Any] = field(default_factory=dict)
     allow_mixed_adjustments: bool = False
     diagnostic_only: bool = False
+    experiment_mode: str = "run"
+    parameter_selection: Mapping[str, Any] = field(default_factory=dict)
+    resource_limits: Mapping[str, Any] = field(default_factory=dict)
+    cost_analysis: Mapping[str, Any] = field(default_factory=dict)
+    warmup_policy: str = "none"
+    execution_start_date: str | None = None
 
     def __post_init__(self):
         if self.schema_version != EXPERIMENT_SCHEMA_VERSION:
@@ -64,6 +70,17 @@ class ExperimentConfig:
             raise ValueError("universe symbols must be unique")
         if self.allow_mixed_adjustments and not self.diagnostic_only:
             raise ValueError("mixed adjustments may only be enabled for diagnostic-only runs")
+        if self.experiment_mode not in {"run", "fixed_selection", "walk_forward"}:
+            raise ValueError("experiment_mode must be run, fixed_selection, or walk_forward")
+        if self.warmup_policy not in {"none", "history_only"}:
+            raise ValueError("warmup_policy must be none or history_only")
+        if self.execution_start_date is not None:
+            try:
+                execution_start = date.fromisoformat(self.execution_start_date)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("execution_start_date must use YYYY-MM-DD") from exc
+            if not (date.fromisoformat(self.start_date) <= execution_start <= date.fromisoformat(self.end_date)):
+                raise ValueError("execution_start_date must be within the configured interval")
         if not self.data_manifest or not self.data_root:
             raise ValueError("data_manifest and data_root are required")
         try:
@@ -76,7 +93,8 @@ class ExperimentConfig:
             raise ValueError("data_alignment_mode must be intersection or union")
         for name in ("strategy_parameters", "constructor_parameters", "fee_parameters",
                      "slippage_parameters", "execution_parameters", "constraint_parameters",
-                     "benchmark_definitions", "split_definitions"):
+                     "benchmark_definitions", "split_definitions", "parameter_selection",
+                     "resource_limits", "cost_analysis"):
             if not isinstance(getattr(self, name), Mapping):
                 raise ValueError(f"{name} must be an object")
         if self.portfolio_constructor != "strategy-native" or self.constructor_parameters:
@@ -101,6 +119,7 @@ class ExperimentConfig:
             raise ValueError("split_definitions.type must be none, fixed, rolling, or expanding")
         if split_type == "none" and not self.split_definitions.get("reason"):
             raise ValueError("a no-fit experiment must document why no split is used")
+        self._validate_mode(split_type)
         benchmark_type = self.benchmark_definitions.get("type")
         if benchmark_type == "none":
             if set(self.benchmark_definitions) != {"type"}:
@@ -124,6 +143,75 @@ class ExperimentConfig:
             raise ValueError("unsupported benchmark type; use none, equal_weight_buy_and_hold, or single_symbol_buy_and_hold")
         # Fail early rather than producing an experiment that cannot be restored.
         _canonical(asdict(self))
+
+    def _validate_mode(self, split_type: str) -> None:
+        """Validate orchestration fields before a snapshot is opened."""
+        if self.experiment_mode == "run":
+            if split_type != "none" or self.parameter_selection or self.resource_limits or self.cost_analysis:
+                raise ValueError("run mode requires a no-fit split and no selection-only fields")
+            if self.warmup_policy == "history_only" and self.execution_start_date is None:
+                raise ValueError("history_only run requires execution_start_date")
+            return
+        if self.warmup_policy != "history_only" or self.execution_start_date is not None:
+            raise ValueError("selection modes require history_only warm-up and derive execution_start_date per child")
+        expected = "fixed" if self.experiment_mode == "fixed_selection" else {"rolling", "expanding"}
+        if (split_type != expected if isinstance(expected, str) else split_type not in expected):
+            raise ValueError(f"{self.experiment_mode} has an incompatible split type")
+        selection_allowed = {"parameter_grid", "parameter_constraints", "selection_objective",
+                             "objective_direction", "tie_break_rules", "minimum_observations",
+                             "failure_policy", "diagnostic_selection_sensitivity"}
+        unknown = set(self.parameter_selection) - selection_allowed
+        required = {"parameter_grid", "parameter_constraints", "selection_objective",
+                    "objective_direction", "tie_break_rules", "minimum_observations", "failure_policy"}
+        if unknown or required - set(self.parameter_selection):
+            raise ValueError(f"parameter_selection fields invalid; unknown={sorted(unknown)}, missing={sorted(required-set(self.parameter_selection))}")
+        grid = self.parameter_selection["parameter_grid"]
+        if not isinstance(grid, Mapping) or not grid or any(not isinstance(v, list) or not v for v in grid.values()):
+            raise ValueError("parameter_grid must be a nonempty object of nonempty arrays")
+        if self.parameter_selection["objective_direction"] not in {"maximize", "minimize"}:
+            raise ValueError("objective_direction must be maximize or minimize")
+        if self.parameter_selection["failure_policy"] not in {"fail_fast", "continue"}:
+            raise ValueError("failure_policy must be fail_fast or continue")
+        objective = self.parameter_selection["selection_objective"]
+        ties = self.parameter_selection["tie_break_rules"]
+        if not isinstance(objective, str) or "test" in objective.lower() or not isinstance(ties, list):
+            raise ValueError("selection rules must be explicit and cannot reference test metrics")
+        if any(not isinstance(x, str) or "test" in x.lower() for x in ties):
+            raise ValueError("tie-break rules cannot reference test metrics")
+        if not isinstance(self.parameter_selection["parameter_constraints"], list):
+            raise ValueError("parameter_constraints must be an array")
+        limits_allowed = {"maximum_candidate_count", "maximum_folds", "wall_clock_seconds", "execution"}
+        if set(self.resource_limits) - limits_allowed or "maximum_candidate_count" not in self.resource_limits:
+            raise ValueError("resource_limits requires maximum_candidate_count and contains an unknown field")
+        if self.resource_limits.get("execution", "serial") != "serial":
+            raise ValueError("only deterministic serial execution is supported")
+        count = 1
+        for values in grid.values(): count *= len(values)
+        maximum = self.resource_limits["maximum_candidate_count"]
+        if not isinstance(maximum, int) or maximum < 1 or count > maximum:
+            raise ValueError("parameter grid exceeds maximum_candidate_count")
+        if self.experiment_mode == "walk_forward" and (not isinstance(self.resource_limits.get("maximum_folds"), int)
+                                                        or self.resource_limits["maximum_folds"] < 1):
+            raise ValueError("walk_forward requires a positive maximum_folds")
+        split_allowed = ({"type", "train_start", "train_end", "validation_start", "validation_end",
+                          "test_start", "test_end", "warmup_observations"} if split_type == "fixed" else
+                         {"type", "train_observations", "validation_observations", "test_observations",
+                          "step_observations", "warmup_observations"})
+        if set(self.split_definitions) != split_allowed:
+            raise ValueError(f"split_definitions for {split_type} requires exactly {sorted(split_allowed)}")
+        cost_allowed = {"closed_loop", "fixed_path"}
+        if set(self.cost_analysis) - cost_allowed:
+            raise ValueError("cost_analysis contains unknown fields")
+        for kind, scenarios in self.cost_analysis.items():
+            if not isinstance(scenarios, Mapping):
+                raise ValueError(f"cost_analysis.{kind} must be an object of named scenarios")
+            for name, costs in scenarios.items():
+                if not isinstance(name, str) or not name or not isinstance(costs, Mapping):
+                    raise ValueError("cost scenarios require nonempty names and cost objects")
+                if set(costs) - {"commission_rate", "minimum_commission", "slippage_rate"}:
+                    raise ValueError("cost scenario contains an unsupported cost field")
+                if any(not isinstance(value, (int, float)) or value < 0 for value in costs.values()):
+                    raise ValueError("cost scenario values must be nonnegative numbers")
 
     @property
     def experiment_id(self) -> str:
@@ -152,7 +240,8 @@ class ExperimentConfig:
         required = {"schema_version", "experiment_name", "universe", "start_date", "end_date",
                     "strategy_class", "portfolio_constructor", "initial_cash", "fee_parameters",
                     "slippage_parameters", "execution_parameters", "constraint_parameters",
-                    "benchmark_definitions", "output_directory", "split_definitions", "data_manifest", "data_root"}
+                    "benchmark_definitions", "output_directory", "split_definitions", "data_manifest", "data_root",
+                    "experiment_mode", "warmup_policy"}
         missing = required - set(data)
         if unknown or missing:
             raise ValueError(f"configuration fields invalid; unknown={sorted(unknown)}, missing={sorted(missing)}")

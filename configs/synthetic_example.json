@@ -17,6 +17,7 @@
     "execution_timing": "next_open",
     "lot_size": 100
   },
+  "experiment_mode": "run",
   "experiment_name": "synthetic-infrastructure-example",
   "fee_parameters": {
     "commission_rate": 0.00025,
@@ -41,5 +42,6 @@
   "universe": [
     "AAA",
     "BBB"
-  ]
+  ],
+  "warmup_policy": "none"
 }

@@ -133,3 +133,9 @@ a hash-verified result bundle. The CLI currently executes no-fit runs; retained
 grid-search and walk-forward command names fail safely pending validated runners.
 See [the experiment guide](docs/experiments.md)
 and [`configs/example_momentum.json`](configs/example_momentum.json).
+
+### Reproducible schema-2 experiments
+
+See [the experiment guide](docs/experiments.md) for the `run`, `fixed_selection`, and
+`walk_forward` configuration contracts and exact CLI commands. The included SIT snapshots and
+returns are synthetic infrastructure fixtures only, not investment-performance evidence.
