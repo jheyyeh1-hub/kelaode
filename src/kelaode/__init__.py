@@ -27,6 +27,7 @@ from .portfolio import (
     EqualWeightBuyAndHold,
     ETFFeeModel,
     FeeModel,
+    HoldTargets,
     MarketView,
     PeriodicEqualWeightRebalance,
     PortfolioBacktestConfig,
@@ -65,6 +66,7 @@ __all__ = [
     "EqualWeightBuyAndHold",
     "ETFFeeModel",
     "FeeModel",
+    "HoldTargets",
     "MarketView",
     "PeriodicEqualWeightRebalance",
     "PortfolioBacktestConfig",
@@ -75,6 +77,8 @@ __all__ = [
     "PortfolioStrategy",
     "PortfolioTrade",
     "Rejection",
+    "SITMomentumRotationStrategy",
+    "SITRotationParameters",
 ]
 
 # Strategy SDK public API.
@@ -83,3 +87,4 @@ from .strategy_sdk import (CashBuffer, EqualWeightBottomK, EqualWeightTopK, Long
     TradableOnlyFilter, TurnoverLimit, VolatilityScaledWeight, parameters_json)
 from .strategies import (CrossSectionalMomentumRotation, MultiAssetRiskDiversification,
     MultiFactorETFStrategy, TrendFilteredMomentum, VolatilityTargetStrategy)
+from .open_source_rotation import SITMomentumRotationStrategy, SITRotationParameters
