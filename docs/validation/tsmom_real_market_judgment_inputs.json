@@ -1,0 +1,61 @@
+{
+  "diagnostic_status": "INCOMPLETE",
+  "execution_status": "FAILED_DATA_INTEGRITY",
+  "failure": {
+    "missing_snapshot_files": [
+      "159915.csv",
+      "510300.csv",
+      "510500.csv",
+      "511010.csv",
+      "512100.csv",
+      "512480.csv",
+      "512880.csv",
+      "513100.csv",
+      "518880.csv"
+    ],
+    "stage": "immutable_snapshot_validation",
+    "validation_error": "snapshot file missing: 510300.csv"
+  },
+  "judgment_function": "evaluate_tsmom_judgment(...)",
+  "judgment_status": "PROVISIONAL",
+  "metrics": {
+    "accounting_reconstructable": false,
+    "audits_pass": false,
+    "diagnostic_status": "INCOMPLETE",
+    "evaluated": true,
+    "frozen_test_excess_return": null,
+    "frozen_test_return": null,
+    "moderate_equity_ratio": null,
+    "post_result_protocol_change": false,
+    "severe_equity_ratio": null,
+    "stitched_max_drawdown": null,
+    "stitched_oos_return": null
+  },
+  "preregistration_anchor": {
+    "canonical_snapshot_identity": "16ecae299c7944302c0bffe3688bf9bdb2b931012a82d3dd47c79c36778fabfe",
+    "commit": "3aa82b4e687534bc8d0c56e1d7a3b40a7038b8f5",
+    "frozen_file_sha256": {
+      "configs/validation/tsmom_real_market_fixed.json": "d544ac428f3f81dd09f4b82728c865d76a5cc1cdb123afb81dbd86e0ae281781",
+      "configs/validation/tsmom_real_market_walk_forward.json": "3bfe2bdac16e02e607fde262a91d512961be957f62a4f5268dc92c3cf944670e",
+      "configs/validation/tsmom_validation_policy.json": "2fc1fa370fe1750195a66879211de1e40198db5b695442900cb286febdce9561",
+      "docs/validation/tsmom_real_market_protocol.md": "90fb770c00a986ee31742472275f9fb8dbc695d9a489c2fdf6cd36ad4c7552cf"
+    },
+    "snapshot_manifest_sha256": "682e83a62e8acc3d4ef3a45c32174a6eff2e668df101bb12e02104d847141643",
+    "source_tree_sha256": "47ddc777143f08cf1eb00ac7e6f5cbd1f411b898507054148724f86554a9967f"
+  },
+  "schema_version": "2.0",
+  "strategy_judgment": "FAIL",
+  "thresholds": {
+    "conditional_contribution_share_gt": 0.6,
+    "conditional_severe_equity_ratio_lt": 0.9,
+    "fail_frozen_test_return_le": -0.2,
+    "fail_moderate_equity_ratio_lt": 0.9,
+    "fail_stitched_max_drawdown_lt": -0.5,
+    "fail_stitched_oos_return_le": -0.2,
+    "pass_frozen_test_excess_return_gt": 0.0,
+    "pass_frozen_test_return_gt": 0.0,
+    "pass_moderate_equity_ratio_ge": 0.95,
+    "pass_stitched_max_drawdown_ge": -0.35,
+    "pass_stitched_oos_return_gt": 0.0
+  }
+}
