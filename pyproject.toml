@@ -11,6 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+data = ["akshare>=1.16"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
