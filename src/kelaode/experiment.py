@@ -159,7 +159,7 @@ class ExperimentConfig:
             raise ValueError(f"{self.experiment_mode} has an incompatible split type")
         selection_allowed = {"parameter_grid", "parameter_constraints", "selection_objective",
                              "objective_direction", "tie_break_rules", "minimum_observations",
-                             "failure_policy", "diagnostic_selection_sensitivity"}
+                             "failure_policy", "diagnostic_selection_sensitivity", "metric_constraints"}
         unknown = set(self.parameter_selection) - selection_allowed
         required = {"parameter_grid", "parameter_constraints", "selection_objective",
                     "objective_direction", "tie_break_rules", "minimum_observations", "failure_policy"}
@@ -180,6 +180,15 @@ class ExperimentConfig:
             raise ValueError("tie-break rules cannot reference test metrics")
         if not isinstance(self.parameter_selection["parameter_constraints"], list):
             raise ValueError("parameter_constraints must be an array")
+        metric_constraints = self.parameter_selection.get("metric_constraints", [])
+        if not isinstance(metric_constraints, list):
+            raise ValueError("metric_constraints must be an array")
+        for rule in metric_constraints:
+            if (not isinstance(rule, Mapping) or set(rule) != {"metric", "operator", "value"}
+                    or rule["operator"] not in {"lt", "le", "gt", "ge"}
+                    or not isinstance(rule["metric"], str)
+                    or not isinstance(rule["value"], (int, float))):
+                raise ValueError("metric constraints require metric, operator, and numeric value")
         limits_allowed = {"maximum_candidate_count", "maximum_folds", "wall_clock_seconds", "execution"}
         if set(self.resource_limits) - limits_allowed or "maximum_candidate_count" not in self.resource_limits:
             raise ValueError("resource_limits requires maximum_candidate_count and contains an unknown field")
