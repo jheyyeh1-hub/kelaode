@@ -56,5 +56,6 @@
     "STABLE",
     "VOLATILE",
     "LATE"
-  ]
+  ],
+  "warmup_policy": "none"
 }

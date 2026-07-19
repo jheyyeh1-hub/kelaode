@@ -17,12 +17,16 @@ runtime and dependency versions are available.
 
 `FixedSplit`, `RollingWalkForward`, and `ExpandingWalkForward` consume an
 explicit trading calendar. A fold keeps train, validation and test disjoint.
-Warm-up dates precede test dates and are context only: callers must slice
-reported returns at the first test date. Grid search callbacks may receive only
-train and validation views; invoke the existing backtest engine on test only
-after `GridSearch.select` freezes parameters. Fittable strategies persist their
-JSON-compatible state between these two operations; ordinary strategies remain
-unchanged.
+Schema-2.0 selection currently accepts registered fixed-rule/no-fit strategies
+only. Train boundaries are retained as unused lineage and every evaluation says
+`fit_applicable: false`; the runner does not claim training occurred. Registered
+fittable strategies are rejected until fitted-state isolation and contracts exist.
+
+The required `history_only` warm-up policy supplies bars to indicator history
+but disables order queuing and execution until validation/test begins. Warm-up
+therefore creates no fills, costs, or positions, and eligible-period equity starts
+at configured initial capital. The resolved execution boundary and warm-up policy
+are identity-bearing child configuration fields.
 
 The CLI exposes `run`, `grid-search`, and `walk-forward`; each dispatches to the
 same validated Python API described below. The runners write and hash their
@@ -80,6 +84,20 @@ configuration and evaluation plus a sealed shared-runner bundle. Fixed tests and
 likewise retain shared-runner equity, cash, positions, weights, orders, fills, trades, and
 benchmark artifacts. Walk-forward parents add stitched test-only equity/drawdown and fold and
 parameter-switch histories. Missing, changed, or undeclared files invalidate reuse.
+
+Each manifest declares its direct files and hashes, exact child paths and child-manifest hashes,
+schema version, and expected candidate/fold counts. Validation rejects missing, additional,
+partial, or changed children and altered nested files. Incomplete candidate, test, scenario,
+fold, stitched, or parent publication is either removed and recomputed or rebuilt from already
+validated candidate checkpoints; incomplete directories are never cache hits.
+
+Fold-local OOS equity is saved unchanged in `fold_local_equity.csv`. Stitching anchors the first
+observation of each independently capitalized fold to the prior stitched ending capital, then
+compounds that fold's local equity ratios. A one-observation fold contributes zero return;
+nonpositive/nonfinite anchors and unordered or duplicate dates are rejected. The corresponding
+rebased segment is saved as `fold_rebased_equity.csv`, while the parent saves continuous
+`stitched_oos_equity.csv` and drawdown. Independent fold initial cash is never treated as a cash
+flow or artificial drawdown.
 
 Closed-loop scenarios rerun only the already-selected parameters under new execution costs.
 Fixed-path scenarios instead reprice the identical base fill quantities and ordering. They are

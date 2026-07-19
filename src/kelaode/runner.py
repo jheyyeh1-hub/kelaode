@@ -118,13 +118,15 @@ def run_experiment(config: ExperimentConfig) -> Path:
     data = _aligned_data(config, manifest)
     engine_config = _engine_config(config)
     random.seed(config.random_seed)
-    result = PortfolioBacktester(engine_config).run(data, _strategy(config))
+    execution_start = date.fromisoformat(config.execution_start_date) if config.execution_start_date else None
+    result = PortfolioBacktester(engine_config).run(data, _strategy(config), execution_start=execution_start)
     benchmark_type = config.benchmark_definitions["type"]
     benchmark_symbols = (() if benchmark_type == "none" else
         tuple(config.benchmark_definitions["symbols"]) if benchmark_type == "equal_weight_buy_and_hold" else
         (config.benchmark_definitions["symbol"],))
     benchmark = (PortfolioBacktester(engine_config).run(
-        {symbol: data[symbol] for symbol in benchmark_symbols}, EqualWeightBuyAndHold(benchmark_symbols))
+        {symbol: data[symbol] for symbol in benchmark_symbols}, EqualWeightBuyAndHold(benchmark_symbols),
+        execution_start=execution_start)
         if benchmark_symbols else None)
     if benchmark and tuple(result.equity_curve) != tuple(benchmark.equity_curve):
         raise ValueError("benchmark and strategy dates are not exactly aligned")

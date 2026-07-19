@@ -41,5 +41,6 @@
   "universe": [
     "510300",
     "510500"
-  ]
+  ],
+  "warmup_policy": "none"
 }

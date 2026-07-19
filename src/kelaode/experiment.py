@@ -58,6 +58,8 @@ class ExperimentConfig:
     parameter_selection: Mapping[str, Any] = field(default_factory=dict)
     resource_limits: Mapping[str, Any] = field(default_factory=dict)
     cost_analysis: Mapping[str, Any] = field(default_factory=dict)
+    warmup_policy: str = "none"
+    execution_start_date: str | None = None
 
     def __post_init__(self):
         if self.schema_version != EXPERIMENT_SCHEMA_VERSION:
@@ -70,6 +72,15 @@ class ExperimentConfig:
             raise ValueError("mixed adjustments may only be enabled for diagnostic-only runs")
         if self.experiment_mode not in {"run", "fixed_selection", "walk_forward"}:
             raise ValueError("experiment_mode must be run, fixed_selection, or walk_forward")
+        if self.warmup_policy not in {"none", "history_only"}:
+            raise ValueError("warmup_policy must be none or history_only")
+        if self.execution_start_date is not None:
+            try:
+                execution_start = date.fromisoformat(self.execution_start_date)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("execution_start_date must use YYYY-MM-DD") from exc
+            if not (date.fromisoformat(self.start_date) <= execution_start <= date.fromisoformat(self.end_date)):
+                raise ValueError("execution_start_date must be within the configured interval")
         if not self.data_manifest or not self.data_root:
             raise ValueError("data_manifest and data_root are required")
         try:
@@ -138,7 +149,11 @@ class ExperimentConfig:
         if self.experiment_mode == "run":
             if split_type != "none" or self.parameter_selection or self.resource_limits or self.cost_analysis:
                 raise ValueError("run mode requires a no-fit split and no selection-only fields")
+            if self.warmup_policy == "history_only" and self.execution_start_date is None:
+                raise ValueError("history_only run requires execution_start_date")
             return
+        if self.warmup_policy != "history_only" or self.execution_start_date is not None:
+            raise ValueError("selection modes require history_only warm-up and derive execution_start_date per child")
         expected = "fixed" if self.experiment_mode == "fixed_selection" else {"rolling", "expanding"}
         if (split_type != expected if isinstance(expected, str) else split_type not in expected):
             raise ValueError(f"{self.experiment_mode} has an incompatible split type")
@@ -226,7 +241,7 @@ class ExperimentConfig:
                     "strategy_class", "portfolio_constructor", "initial_cash", "fee_parameters",
                     "slippage_parameters", "execution_parameters", "constraint_parameters",
                     "benchmark_definitions", "output_directory", "split_definitions", "data_manifest", "data_root",
-                    "experiment_mode"}
+                    "experiment_mode", "warmup_policy"}
         missing = required - set(data)
         if unknown or missing:
             raise ValueError(f"configuration fields invalid; unknown={sorted(unknown)}, missing={sorted(missing)}")

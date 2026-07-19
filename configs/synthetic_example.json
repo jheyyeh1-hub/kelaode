@@ -42,5 +42,6 @@
   "universe": [
     "AAA",
     "BBB"
-  ]
+  ],
+  "warmup_policy": "none"
 }

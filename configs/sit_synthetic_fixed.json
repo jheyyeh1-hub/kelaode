@@ -83,5 +83,6 @@
     "STABLE",
     "VOLATILE",
     "LATE"
-  ]
+  ],
+  "warmup_policy": "history_only"
 }
