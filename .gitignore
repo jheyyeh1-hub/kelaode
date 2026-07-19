@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 data/market/etf_daily/*.csv
 data/market/etf_daily/*.parquet
+data/market/etf_daily/*.source
 data/market/etf_daily/manifest.json
 !data/market/etf_daily/manifest.example.json
 results/
