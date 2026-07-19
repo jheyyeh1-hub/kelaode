@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import shutil
@@ -150,6 +151,22 @@ def test_turnover_and_fixed_path_mutations_are_detected(sealed_fixed, mutation, 
     _mutate_json(root / "result.json", mutation); _reseal(root)
     with pytest.raises(ValueError, match=match):
         audit_selection(root, policy)
+
+
+def test_equivalent_numeric_trade_formatting_reconciles(sealed_fixed):
+    root, policy = sealed_fixed
+    result = json.loads((root / "result.json").read_text())
+    trades_path = root / result["frozen_test_bundle"] / "trades.csv"
+    with trades_path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+        fields = tuple(rows[0])
+    rows[0]["commission"] += "0" if "." in rows[0]["commission"] else ".0"
+    with trades_path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    _reseal(root)
+    assert audit_selection(root, policy)["status"] == "pass"
 
 
 def test_official_prelisting_position_and_benchmark_mismatch_are_detected(sealed_fixed):

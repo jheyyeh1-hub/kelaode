@@ -100,6 +100,10 @@ def test_judgment_conditional_triggers(thresholds, change):
 
 def test_report_status_matches_mechanical_judgment(thresholds):
     report = open("docs/validation/sit_real_market_report.md", encoding="utf-8").read()
-    assert "execution_status = FAILED_DATA_FREEZE" in report
-    expected = evaluate_strategy_judgment(None, thresholds)
+    persisted = json.loads(open(
+        "docs/validation/sit_real_market_judgment_inputs.json", encoding="utf-8").read())
+    assert "execution_status = COMPLETED" in report
+    assert persisted["thresholds"] == thresholds
+    expected = evaluate_strategy_judgment(persisted["metrics"], thresholds)
+    assert persisted["strategy_judgment"] == expected
     assert f"strategy_judgment = {expected}" in report

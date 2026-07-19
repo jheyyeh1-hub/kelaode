@@ -72,9 +72,15 @@ def _audit_run(bundle: Path, official_listing: Mapping[str, str], test_dates: Se
     checks.append("equity_equals_cash_plus_marked_positions")
 
     fills_rows, trades_rows = _rows(bundle / "fills.csv"), _rows(bundle / "trades.csv")
-    fill_fields = ("date", "symbol", "side", "quantity", "price", "commission")
-    if [tuple(r[k] for k in fill_fields) for r in fills_rows] != [tuple(r[k] for k in fill_fields) for r in trades_rows]:
+    fill_keys = ("date", "symbol", "side")
+    if len(fills_rows) != len(trades_rows):
         raise ValueError("trades do not reconcile with fills")
+    for fill, trade in zip(fills_rows, trades_rows):
+        if (tuple(fill[k] for k in fill_keys) != tuple(trade[k] for k in fill_keys) or
+                int(fill["quantity"]) != int(trade["quantity"])):
+            raise ValueError("trades do not reconcile with fills")
+        for field in ("price", "commission"):
+            _close(float(fill[field]), float(trade[field]), f"trade/fill {field}")
     checks.append("trades_reconcile_with_fills")
 
     execution_start = child_config.get("execution_start_date")
