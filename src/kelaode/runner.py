@@ -176,7 +176,8 @@ def run_experiment(config: ExperimentConfig) -> Path:
         _write_json(tmp / "contracts.json", {"schema_version": BUNDLE_SCHEMA_VERSION,
                                                "csv_columns": {k: list(v) for k, v in ARTIFACT_COLUMNS.items()}})
         _write_json(tmp / "daily_audits.json", [{"date": str(a.trade_date), "cash": a.cash,
-                    "equity": a.equity, "reason_codes": [x.value for x in a.constraint_reason_codes]}
+                    "equity": a.equity, "reason_codes": [x.value for x in a.constraint_reason_codes],
+                    "strategy_diagnostics": a.strategy_diagnostics}
                     for a in result.daily_audits])
         _write_csv(tmp / "equity_curve.csv", ({"date": d, "equity": v} for d, v in result.equity_curve.items()))
         _write_csv(tmp / "cash.csv", ({"date": d, "cash": v} for d, v in result.cash_curve.items()))

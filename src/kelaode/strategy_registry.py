@@ -8,6 +8,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from .open_source_rotation import SITMomentumRotationStrategy, SITRotationParameters
 from .portfolio import CrossSectionalMomentumStrategy, EqualWeightBuyAndHold, PortfolioStrategy
+from .time_series_trend import TimeSeriesTrendParameters, TimeSeriesTrendStrategy
 
 ParameterParser = Callable[[Mapping[str, Any]], Any]
 StrategyFactory = Callable[[Sequence[str], Any], PortfolioStrategy]
@@ -38,6 +39,10 @@ STRATEGY_REGISTRY: Mapping[str, StrategyRegistration] = MappingProxyType({
     "SITMomentumRotationStrategy": StrategyRegistration(
         factory=lambda symbols, parameters: SITMomentumRotationStrategy(symbols, parameters),
         parse_parameters=lambda parameters: SITRotationParameters(**parameters),
+    ),
+    "TimeSeriesTrendStrategy": StrategyRegistration(
+        factory=lambda symbols, parameters: TimeSeriesTrendStrategy(symbols, parameters),
+        parse_parameters=lambda parameters: TimeSeriesTrendParameters(**parameters),
     ),
 })
 

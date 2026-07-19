@@ -260,5 +260,7 @@ def test_every_maintained_experiment_config_loads():
     maintained = sorted((REPO / "configs").glob("*.json"))
     assert {path.name for path in maintained} == {
         "example_momentum.json", "sit_synthetic.json", "synthetic_example.json",
-        "sit_synthetic_fixed.json", "sit_synthetic_walk_forward.json"}
+        "sit_synthetic_fixed.json", "sit_synthetic_walk_forward.json",
+        "tsmom_synthetic_run.json", "tsmom_synthetic_fixed.json",
+        "tsmom_synthetic_walk_forward.json"}
     assert all(ExperimentConfig.from_json(path).schema_version == "2.0" for path in maintained)

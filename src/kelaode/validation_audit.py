@@ -44,6 +44,47 @@ def _close(actual: float, expected: float, label: str, tolerance: float = _TOLER
         raise ValueError(f"{label} mismatch: actual={actual}, expected={expected}")
 
 
+def audit_time_series_trend_diagnostics(bundle: str | Path,
+                                        tolerance: float = 1e-12) -> list[str]:
+    """Independently reconstruct sealed TSMOM targets from saved diagnostics."""
+    bundle = Path(bundle)
+    config = _json(bundle / "configuration.json")
+    if config.get("strategy_class") != "TimeSeriesTrendStrategy":
+        raise ValueError("bundle is not a TimeSeriesTrendStrategy experiment")
+    audits = _json(bundle / "daily_audits.json")
+    weights = {(row["date"], row["symbol"]): float(row["target_weight"])
+               for row in _rows(bundle / "weights.csv")}
+    checks = []
+    for audit in audits:
+        diagnostics = audit.get("strategy_diagnostics")
+        if not isinstance(diagnostics, dict):
+            raise ValueError(f"missing strategy diagnostics on {audit['date']}")
+        symbols = diagnostics.get("symbols")
+        if not isinstance(symbols, dict) or set(symbols) != set(config["universe"]):
+            raise ValueError(f"diagnostic universe mismatch on {audit['date']}")
+        if not diagnostics.get("rebalance"):
+            continue
+        raw = {symbol: float(item["raw_inverse_volatility"])
+               for symbol, item in symbols.items()
+               if item["eligibility_reason"] == "eligible"}
+        total = sum(raw.values())
+        expected = {symbol: value / total for symbol, value in raw.items()} if total else {}
+        if diagnostics.get("active_asset_count") != len(expected):
+            raise ValueError(f"active count mismatch on {audit['date']}")
+        concentration = sum(value * value for value in expected.values())
+        _close(float(diagnostics.get("target_concentration")), concentration,
+               f"target concentration on {audit['date']}", tolerance)
+        for symbol, item in symbols.items():
+            saved = weights[(audit["date"], symbol)]
+            reconstructed = expected.get(symbol, 0.0)
+            _close(float(item["normalized_target_weight"]), reconstructed,
+                   f"diagnostic target {symbol} on {audit['date']}", tolerance)
+            _close(saved, reconstructed, f"saved target {symbol} on {audit['date']}", tolerance)
+    checks.extend(("point_in_time_diagnostics_present", "inverse_volatility_targets_reconstructed",
+                   "active_count_reconstructed", "target_concentration_reconstructed"))
+    return checks
+
+
 def _audit_run(bundle: Path, official_listing: Mapping[str, str], test_dates: Sequence[str],
                expected_parameters: Mapping[str, Any], expected_test_id: str) -> list[str]:
     checks: list[str] = []

@@ -79,6 +79,8 @@ __all__ = [
     "Rejection",
     "SITMomentumRotationStrategy",
     "SITRotationParameters",
+    "TimeSeriesTrendParameters",
+    "TimeSeriesTrendStrategy",
 ]
 
 # Strategy SDK public API.
@@ -88,3 +90,4 @@ from .strategy_sdk import (CashBuffer, EqualWeightBottomK, EqualWeightTopK, Long
 from .strategies import (CrossSectionalMomentumRotation, MultiAssetRiskDiversification,
     MultiFactorETFStrategy, TrendFilteredMomentum, VolatilityTargetStrategy)
 from .open_source_rotation import SITMomentumRotationStrategy, SITRotationParameters
+from .time_series_trend import TimeSeriesTrendParameters, TimeSeriesTrendStrategy
