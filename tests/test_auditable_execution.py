@@ -8,7 +8,7 @@ from kelaode import (
     TradingConstraints, ValidatedOrder,
     PortfolioBacktestConfig, PortfolioBacktester,
 )
-from kelaode.market_data import DailyBar, MarketDataset
+from kelaode.market_data import DailyBar
 
 
 STOCK = InstrumentMetadata("600000.SH", AssetType.A_SHARE_STOCK, "SSE", t_plus_one=True,
@@ -94,17 +94,18 @@ def test_portfolio_execution_is_next_open_auditable_and_symbol_sorted():
         "b": InstrumentMetadata("b", AssetType.ETF, "SSE", lot_size=1),
         "a": InstrumentMetadata("a", AssetType.ETF, "SSE", lot_size=1),
     }
-    market = MarketDataset({symbol: [
+    market = {symbol: [
         DailyBar(date(2024, 1, 1), 10, 10, 10, 10, 1_000),
         DailyBar(date(2024, 1, 2), 20, 20, 20, 20, 1_000),
-    ] for symbol in metadata})
+    ] for symbol in metadata}
 
     class Strategy:
-        def target_weights(self, trade_date, history):
+        def target_weights(self, index, trade_date, market_view, portfolio):
             return {"b": .25, "a": .25}
 
     result = PortfolioBacktester(
-        metadata, PortfolioBacktestConfig(initial_cash=1_000, minimum_commission=0),
+        PortfolioBacktestConfig(initial_cash=1_000, minimum_commission=0, lot_size=1),
+        metadata=metadata,
         fill_model=FillModel(slippage_rate=0, minimum_commission=0, commission_rate=0),
     ).run(market, Strategy())
     second = result.daily_audits[1]
@@ -113,3 +114,77 @@ def test_portfolio_execution_is_next_open_auditable_and_symbol_sorted():
     assert second.strategy_target == {"b": .25, "a": .25}
     assert second.end_of_day_positions == {"a": 12, "b": 12}
     assert second.cash == pytest.approx(520)
+
+
+class Targets:
+    def __init__(self, targets):
+        self.targets = targets
+
+    def target_weights(self, index, trade_date, market, portfolio):
+        return self.targets[min(index, len(self.targets) - 1)]
+
+
+def test_partial_fill_accounting_matches_audit_and_equity():
+    data = {"A": [DailyBar(date(2024, 1, day), 10, 10, 10, 10, 50)
+                  for day in (1, 2)]}
+    config = PortfolioBacktestConfig(initial_cash=1_000, lot_size=1,
+                                     commission_rate=0, minimum_commission=0,
+                                     slippage_rate=0, participation_rate=.5)
+    result = PortfolioBacktester(config).run(data, Targets([{"A": 1}, {}]))
+    audit = result.daily_audits[1]
+    assert audit.fills[0].quantity == 25
+    assert audit.end_of_day_positions["A"] == 25
+    assert audit.cash == 750
+    assert audit.equity == 1_000 == result.equity_curve[date(2024, 1, 2)]
+    assert audit.constraint_reason_codes == (ReasonCode.VOLUME_LIMIT,)
+
+
+def test_t_plus_one_and_next_open_execution_are_compatible():
+    data = {"S": [DailyBar(date(2024, 1, day), 10, 10, 10, 10, 1_000)
+                  for day in (1, 2, 3)]}
+    metadata = {"S": InstrumentMetadata("S", AssetType.A_SHARE_STOCK, "SSE",
+                                         lot_size=1, t_plus_one=True)}
+    config = PortfolioBacktestConfig(initial_cash=100, lot_size=1,
+                                     commission_rate=0, minimum_commission=0,
+                                     slippage_rate=0)
+    result = PortfolioBacktester(config, metadata=metadata).run(
+        data, Targets([{"S": 1}, {"S": 0}, {}]))
+    assert [(fill.side, fill.quantity) for fill in result.fills] == [
+        (OrderSide.BUY, 10), (OrderSide.SELL, 10)]
+    assert result.daily_audits[1].end_of_day_positions["S"] == 10
+    assert result.daily_audits[2].end_of_day_positions["S"] == 0
+
+
+def test_integrated_stock_stamp_duty_differs_from_etf():
+    data = {"X": [DailyBar(date(2024, 1, day), 10, 10, 10, 10, 1_000)
+                  for day in (1, 2, 3)]}
+    config = PortfolioBacktestConfig(initial_cash=1_000, lot_size=1,
+                                     commission_rate=0, minimum_commission=0,
+                                     slippage_rate=0)
+    strategy = Targets([{"X": 1}, {"X": 0}, {}])
+    etf = PortfolioBacktester(config, metadata={"X": InstrumentMetadata(
+        "X", AssetType.ETF, "SSE", lot_size=1)}).run(data, strategy)
+    stock = PortfolioBacktester(config, metadata={"X": InstrumentMetadata(
+        "X", AssetType.A_SHARE_STOCK, "SSE", lot_size=1,
+        stamp_duty_applicable=True)}).run(data, strategy)
+    assert etf.cash_curve[date(2024, 1, 3)] == 1_000
+    assert stock.cash_curve[date(2024, 1, 3)] == pytest.approx(999)
+    assert stock.fills[-1].stamp_duty == pytest.approx(1)
+
+
+def test_result_retains_full_metrics_and_execution_is_repeatable():
+    data = {"A": [DailyBar(date(2024, 1, day), 10, 10, 10, 10, 1_000)
+                  for day in (1, 2, 3)]}
+    config = PortfolioBacktestConfig(initial_cash=1_000, lot_size=1,
+                                     commission_rate=0, minimum_commission=0,
+                                     slippage_rate=0, rebalance_tolerance=.01)
+    first = PortfolioBacktester(config).run(data, Targets([{"A": .5}] * 3))
+    second = PortfolioBacktester(config).run(data, Targets([{"A": .5}] * 3))
+    fields = ("equity_curve", "cash_curve", "positions_by_date", "weights_by_date",
+              "trades", "orders", "rejections", "turnover", "total_return",
+              "annualized_return", "annualized_volatility", "max_drawdown",
+              "sharpe_ratio", "sortino_ratio", "calmar_ratio", "daily_audits",
+              "validated_orders", "fills", "reason_codes")
+    assert all(hasattr(first, name) for name in fields)
+    assert first == second
+    assert len(first.fills) == 1  # tolerance prevents redundant rebalancing
