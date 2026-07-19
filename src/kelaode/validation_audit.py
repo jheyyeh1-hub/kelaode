@@ -6,6 +6,8 @@ import csv
 import hashlib
 import json
 import math
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -13,6 +15,9 @@ from .cost_analysis import ReplayFill, fixed_path_cost_replay
 from .experiment_metrics import benchmark_metrics, performance_metrics
 from .selection_runner import stitch_oos_equity, validate_artifact_directory
 from .snapshot import SnapshotManifest, canonical_json
+from .market_data import read_daily_bars
+from .portfolio import MarketView
+from .snapshot import sha256_file
 
 _TOLERANCE = 1e-6
 _DEFAULT_POLICY = Path(__file__).parents[2] / "configs/validation/sit_validation_policy.json"
@@ -46,14 +51,89 @@ def _close(actual: float, expected: float, label: str, tolerance: float = _TOLER
 
 def audit_time_series_trend_diagnostics(bundle: str | Path,
                                         tolerance: float = 1e-12) -> list[str]:
-    """Independently reconstruct sealed TSMOM targets from saved diagnostics."""
+    """Reconstruct TSMOM diagnostics from immutable market data and configuration.
+
+    Saved eligibility labels and inverse-volatility scores are treated only as
+    claims to verify, never as inputs to reconstruction.
+    """
     bundle = Path(bundle)
+    sealed = _json(bundle / "artifact_manifest.json")
+    for name, digest in sealed.get("artifacts", {}).items():
+        if sha256_file(bundle / name) != digest:
+            raise ValueError(f"TSMOM artifact hash mismatch: {name}")
     config = _json(bundle / "configuration.json")
     if config.get("strategy_class") != "TimeSeriesTrendStrategy":
         raise ValueError("bundle is not a TimeSeriesTrendStrategy experiment")
     audits = _json(bundle / "daily_audits.json")
     weights = {(row["date"], row["symbol"]): float(row["target_weight"])
                for row in _rows(bundle / "weights.csv")}
+    manifest = SnapshotManifest.load(config["data_manifest"])
+    manifest.validate(config["data_root"], expected_symbols=config["universe"],
+                      allow_mixed_adjustments=False)
+    start, end = date.fromisoformat(config["start_date"]), date.fromisoformat(config["end_date"])
+    data = {entry.symbol: [bar for bar in read_daily_bars(
+                Path(config["data_root"]) / entry.relative_path)
+                if start <= bar.trade_date <= end]
+            for entry in manifest.entries}
+    parameters = config["strategy_parameters"]
+    trend_lookback = int(parameters["trend_lookback"])
+    volatility_lookback = int(parameters["volatility_lookback"])
+    signal_buffer = Decimal(str(parameters["signal_buffer"]))
+    cap = parameters.get("maximum_active_assets")
+    floor = 1e-12
+    calendar = sorted({bar.trade_date for bars in data.values() for bar in bars})
+    required = max(trend_lookback, volatility_lookback) + 1
+    first_candidates = [calendar.index(bars[required - 1].trade_date)
+                        for bars in data.values() if len(bars) >= required]
+    first_rebalance = min(first_candidates) if first_candidates else None
+
+    def expected_for(day: date) -> tuple[dict[str, dict[str, Any]], list[str]]:
+        market = MarketView(data, day)
+        expected: dict[str, dict[str, Any]] = {}
+        candidates: list[str] = []
+        for symbol in sorted(config["universe"]):
+            item = {"trend_signal": None, "realized_volatility": None,
+                    "raw_inverse_volatility": None,
+                    "normalized_target_weight": 0.0,
+                    "eligibility_reason": "insufficient_trend_history"}
+            if not market.is_available(symbol):
+                item["eligibility_reason"] = "current_bar_unavailable"
+            elif market.latest(symbol).suspended is True:
+                item["eligibility_reason"] = "current_bar_suspended"
+            else:
+                closes = market.history(symbol, "close", trend_lookback + 1)
+                if len(closes) == trend_lookback + 1 and closes[0] > 0:
+                    trend = closes[-1] / closes[0] - 1
+                    item["trend_signal"] = trend
+                    returns = market.returns(symbol, volatility_lookback)
+                    if len(returns) != volatility_lookback or not all(math.isfinite(x) for x in returns):
+                        item["eligibility_reason"] = "insufficient_volatility_history"
+                    else:
+                        mean = sum(returns) / len(returns)
+                        variance = sum((value - mean) ** 2 for value in returns) / (len(returns) - 1)
+                        volatility = math.sqrt(variance) * math.sqrt(252)
+                        item["realized_volatility"] = volatility
+                        if not math.isfinite(volatility) or volatility <= floor:
+                            item["eligibility_reason"] = "volatility_below_floor"
+                        elif (Decimal(str(closes[-1])) / Decimal(str(closes[0])) - Decimal(1)
+                              <= signal_buffer):
+                            item["eligibility_reason"] = "trend_not_above_buffer"
+                        else:
+                            item["eligibility_reason"] = "eligible"
+                            candidates.append(symbol)
+            expected[symbol] = item
+        candidates.sort(key=lambda symbol: (-abs(expected[symbol]["trend_signal"]),
+                                             expected[symbol]["realized_volatility"], symbol))
+        selected = candidates if cap is None else candidates[:int(cap)]
+        for symbol in candidates[len(selected):]:
+            expected[symbol]["eligibility_reason"] = "maximum_active_assets"
+        raw = {symbol: 1 / expected[symbol]["realized_volatility"] for symbol in selected}
+        total = sum(raw.values())
+        for symbol in selected:
+            expected[symbol]["raw_inverse_volatility"] = raw[symbol]
+            expected[symbol]["normalized_target_weight"] = raw[symbol] / total
+        return expected, selected
+
     checks = []
     for audit in audits:
         diagnostics = audit.get("strategy_diagnostics")
@@ -62,26 +142,61 @@ def audit_time_series_trend_diagnostics(bundle: str | Path,
         symbols = diagnostics.get("symbols")
         if not isinstance(symbols, dict) or set(symbols) != set(config["universe"]):
             raise ValueError(f"diagnostic universe mismatch on {audit['date']}")
-        if not diagnostics.get("rebalance"):
+        day = date.fromisoformat(audit["date"])
+        index = calendar.index(day)
+        expected_rebalance = (first_rebalance is not None and index >= first_rebalance and
+                              (index - first_rebalance) % int(parameters["rebalance_frequency"]) == 0)
+        if diagnostics.get("rebalance") is not expected_rebalance:
+            raise ValueError(f"rebalance flag mismatch on {audit['date']}")
+        if not expected_rebalance:
             continue
-        raw = {symbol: float(item["raw_inverse_volatility"])
-               for symbol, item in symbols.items()
-               if item["eligibility_reason"] == "eligible"}
-        total = sum(raw.values())
-        expected = {symbol: value / total for symbol, value in raw.items()} if total else {}
-        if diagnostics.get("active_asset_count") != len(expected):
+        expected, selected = expected_for(day)
+        if cap is not None and len(selected) > int(cap):
+            raise ValueError(f"maximum_active_assets exceeded on {audit['date']}")
+        if diagnostics.get("active_asset_count") != len(selected):
             raise ValueError(f"active count mismatch on {audit['date']}")
-        concentration = sum(value * value for value in expected.values())
+        concentration = sum(expected[s]["normalized_target_weight"] ** 2 for s in selected)
         _close(float(diagnostics.get("target_concentration")), concentration,
                f"target concentration on {audit['date']}", tolerance)
+        total_weight = 0.0
         for symbol, item in symbols.items():
+            claim = expected[symbol]
+            if item.get("eligibility_reason") != claim["eligibility_reason"]:
+                raise ValueError(f"eligibility reason mismatch for {symbol} on {audit['date']}")
+            for field in ("trend_signal", "realized_volatility", "raw_inverse_volatility"):
+                actual, wanted = item.get(field), claim[field]
+                if wanted is None:
+                    if actual is not None:
+                        raise ValueError(f"unexpected {field} for {symbol} on {audit['date']}")
+                else:
+                    if actual is None or not math.isfinite(float(actual)):
+                        raise ValueError(f"missing or nonfinite {field} for {symbol} on {audit['date']}")
+                    _close(float(actual), float(wanted), f"{field} {symbol} on {audit['date']}", tolerance)
+            if symbol in selected:
+                if not math.isfinite(float(item["trend_signal"])) or not Decimal(str(item["trend_signal"])) > signal_buffer:
+                    raise ValueError(f"eligible trend fails buffer for {symbol} on {audit['date']}")
+                _close(float(item["raw_inverse_volatility"]),
+                       1 / float(item["realized_volatility"]),
+                       f"inverse volatility equation {symbol} on {audit['date']}", tolerance)
+            elif item.get("raw_inverse_volatility") is not None:
+                raise ValueError(f"ineligible raw score for {symbol} on {audit['date']}")
             saved = weights[(audit["date"], symbol)]
-            reconstructed = expected.get(symbol, 0.0)
+            reconstructed = float(claim["normalized_target_weight"])
+            if not math.isfinite(saved) or saved < 0:
+                raise ValueError(f"invalid saved target for {symbol} on {audit['date']}")
             _close(float(item["normalized_target_weight"]), reconstructed,
                    f"diagnostic target {symbol} on {audit['date']}", tolerance)
             _close(saved, reconstructed, f"saved target {symbol} on {audit['date']}", tolerance)
+            total_weight += saved
+        if not (math.isclose(total_weight, 0.0, abs_tol=tolerance) or
+                math.isclose(total_weight, 1.0, abs_tol=tolerance)):
+            raise ValueError(f"target weight total is neither zero nor one on {audit['date']}")
     checks.extend(("point_in_time_diagnostics_present", "inverse_volatility_targets_reconstructed",
-                   "active_count_reconstructed", "target_concentration_reconstructed"))
+                   "market_data_trend_reconstructed", "market_data_sample_volatility_reconstructed",
+                   "rebalance_schedule_reconstructed",
+                   "eligibility_reconstructed", "capacity_selection_reconstructed",
+                   "active_count_reconstructed", "target_concentration_reconstructed",
+                   "target_weight_total_valid"))
     return checks
 
 

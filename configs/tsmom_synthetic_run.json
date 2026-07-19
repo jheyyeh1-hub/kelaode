@@ -47,7 +47,7 @@
   "start_date": "2024-03-01",
   "strategy_class": "TimeSeriesTrendStrategy",
   "strategy_parameters": {
-    "maximum_active_assets": 3,
+    "maximum_active_assets": 1,
     "rebalance_frequency": 2,
     "signal_buffer": 0.0,
     "trend_lookback": 3,

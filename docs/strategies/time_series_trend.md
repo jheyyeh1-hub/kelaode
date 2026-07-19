@@ -16,11 +16,11 @@ The first union-calendar session on which any asset has enough own observations 
 
 When `maximum_active_assets` is enabled and binds, capacity is assigned in a preregistered order: strongest absolute positive own-trend signal, then lower realized volatility, then canonical symbol order. This is only a capacity control after independent classification, not cross-sectional top-k momentum.
 
-Signals formed at close *t* enter the shared pending-target path and can execute only at a later open. The shared engine applies cash buffer, maximum single-symbol weight, maximum gross exposure, lot size, participation, commissions, slippage, suspension, and no-shorting constraints.
+Signals formed at close *t* enter the shared pending-target path and can execute only at a later open. The strategy-native constructor normalizes eligible assets to full gross target weight. The shared engine applies cash buffer, maximum single-symbol weight, maximum gross exposure, lot size, participation, commissions, slippage, suspension, and no-shorting constraints; it rejects a target that exceeds configured single-symbol or gross limits rather than silently clipping it. The synthetic configurations intentionally use compatible single-symbol and gross limits.
 
 ## Diagnostics and auditability
 
-The sealed daily audit records the point-in-time trend, realized volatility, eligibility/inactive reason, raw inverse-volatility score, normalized target, rebalance flag, active count, and Herfindahl target concentration. These values contain no future observations and permit reconstruction of each rebalance target.
+The sealed daily audit records the point-in-time trend, realized volatility, eligibility/inactive reason, raw inverse-volatility score, normalized target, rebalance flag, active count, and Herfindahl target concentration. These values contain no future observations and permit reconstruction of each rebalance target. On non-rebalance dates, `active_asset_count` and `target_concentration` describe that day's signal-update diagnostics (both are zero because no target update is emitted); they do **not** describe current portfolio holdings.
 
 ## Strengths and expected failure modes
 

@@ -16,7 +16,42 @@
     "max_single_weight": 1.0
   },
   "constructor_parameters": {},
-  "cost_analysis": {},
+  "cost_analysis": {
+    "closed_loop": {
+      "base": {
+        "commission_rate": 0.001,
+        "minimum_commission": 2.0,
+        "slippage_rate": 0.001
+      },
+      "moderate": {
+        "commission_rate": 0.002,
+        "minimum_commission": 3.0,
+        "slippage_rate": 0.002
+      },
+      "severe": {
+        "commission_rate": 0.004,
+        "minimum_commission": 5.0,
+        "slippage_rate": 0.004
+      }
+    },
+    "fixed_path": {
+      "base": {
+        "commission_rate": 0.001,
+        "minimum_commission": 2.0,
+        "slippage_rate": 0.001
+      },
+      "moderate": {
+        "commission_rate": 0.002,
+        "minimum_commission": 3.0,
+        "slippage_rate": 0.002
+      },
+      "severe": {
+        "commission_rate": 0.004,
+        "minimum_commission": 5.0,
+        "slippage_rate": 0.004
+      }
+    }
+  },
   "data_alignment_mode": "union",
   "data_manifest": "tests/fixtures/tsmom_snapshot/manifest.json",
   "data_root": "tests/fixtures/tsmom_snapshot",
@@ -42,8 +77,8 @@
     "parameter_constraints": [],
     "parameter_grid": {
       "maximum_active_assets": [
-        2,
-        3
+        1,
+        2
       ]
     },
     "selection_objective": "total_return",
