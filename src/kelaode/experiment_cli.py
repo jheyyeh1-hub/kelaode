@@ -12,6 +12,12 @@ def main(argv=None):
         p.add_argument("--config", required=True)
     args = parser.parse_args(argv)
     config = ExperimentConfig.from_json(args.config)
+    if config.strategy_class == "SITMomentumRotationStrategy":
+        from .sit_validation import run_validation
+
+        path = run_validation(args.config, args.command)
+        print(f"{args.command}: {path}")
+        return 0
     path = initialize_output(config)
     print(f"{args.command}: {path}")
     return 0

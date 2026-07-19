@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from bisect import bisect_left, bisect_right
 from math import floor, isfinite, sqrt
 from types import MappingProxyType
 from typing import Mapping, Protocol, Sequence
@@ -106,9 +107,12 @@ class MarketView:
     @property
     def previous_date(self) -> date | None:
         """Previous observed market date, still bounded by ``current_date``."""
-        dates = sorted({bar.trade_date for bars in self._data.values() for bar in bars
-                        if bar.trade_date < self.current_date})
-        return dates[-1] if dates else None
+        previous = []
+        for bars in self._data.values():
+            position = bisect_left(bars, self.current_date, key=lambda bar: bar.trade_date)
+            if position:
+                previous.append(bars[position - 1].trade_date)
+        return max(previous, default=None)
 
     def history(self, symbol: str, field: str, lookback: int) -> tuple[float, ...]:
         self._check_symbol(symbol)
@@ -116,13 +120,15 @@ class MarketView:
             raise ValueError(f"unknown market field: {field}")
         if lookback <= 0:
             raise ValueError("lookback must be positive")
-        visible = [bar for bar in self._data[symbol] if bar.trade_date <= self.current_date]
-        return tuple(float(getattr(bar, field)) for bar in visible[-lookback:])
+        bars = self._data[symbol]
+        stop = bisect_right(bars, self.current_date, key=lambda bar: bar.trade_date)
+        return tuple(float(getattr(bar, field)) for bar in bars[max(0, stop-lookback):stop])
 
     def latest(self, symbol: str) -> DailyBar | None:
         self._check_symbol(symbol)
-        visible = [bar for bar in self._data[symbol] if bar.trade_date <= self.current_date]
-        return visible[-1] if visible else None
+        bars = self._data[symbol]
+        stop = bisect_right(bars, self.current_date, key=lambda bar: bar.trade_date)
+        return bars[stop - 1] if stop else None
 
     def is_tradable(self, symbol: str) -> bool:
         self._check_symbol(symbol)
@@ -150,7 +156,8 @@ class MarketView:
 
     def listing_age(self, symbol: str) -> int:
         self._check_symbol(symbol)
-        return sum(bar.trade_date <= self.current_date for bar in self._data[symbol])
+        return bisect_right(self._data[symbol], self.current_date,
+                            key=lambda bar: bar.trade_date)
 
     @property
     def common_history_length(self) -> int:
