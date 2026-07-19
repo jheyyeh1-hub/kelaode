@@ -4,12 +4,19 @@
 
 * `execution_status = COMPLETED`
 * `strategy_judgment = CONDITIONAL`
+* `judgment_status = PROVISIONAL`
+* `diagnostic_status = INCOMPLETE`
 
-The complete preregistered data freeze succeeded and the formal fixed-selection and walk-forward
-experiments completed. The judgment above was returned by `evaluate_strategy_judgment(...)`, not
+The immutable data freeze succeeded and the corrected formal fixed-selection and walk-forward
+experiments completed. The first completed run from commit `bbe789a` is **invalidated and must not be
+used as formal evidence**: its primary equal-weight buy-and-hold benchmark remained entirely in cash.
+The runner supplied an execution boundary after warm-up began, while `EqualWeightBuyAndHold` emitted
+its sole target only at global index zero; that warm-up target was discarded and every eligible call
+then held cash. Its excess return equaled strategy return and its beta/correlation were zero. Those
+identities and metrics are superseded by the corrected run below. The judgment above was returned by `evaluate_strategy_judgment(...)`, not
 assigned manually. It is research validation, not an investment recommendation or a claim of
-future performance. The conservative diagnostic inputs described in section 8 trigger
-`CONDITIONAL` even though the primary return, drawdown, and moderate-cost clauses pass.
+future performance. Missing diagnostics are explicitly incomplete rather than replaced with asserted
+values. Corrected benchmark excess return is negative, so the frozen PASS clauses do not all pass.
 
 ## 2. Preregistration anchor
 
@@ -61,19 +68,21 @@ predated the official listing date, as independently audited.
 
 ## 4. Fixed selection and frozen test
 
-* Fixed experiment ID: `135d2262f8a2ecbd354eb68a80906557c671e64064c33b913ae3cf5cfef055cb`.
-* Selected candidate ID: `6c33b6f3678b4794b7d2a288ed0de6dffe2920a7b3a4d8c4f07e7f400e281052`.
+* Fixed experiment ID: `6d7ee7cfe8707ae5f9d4ea5de39e593f2625b709f3ffb9a3ee7b64374b861f83`.
+* Selected candidate ID: `df2db91542631bd2e79f9185ecb1b00a2f728bd3d8fa016c12104c0595542090`.
 * Selected parameters: momentum 126, top-k 3, trend 126, volatility 63.
-* Frozen-test child ID: `84ced0399ac60fe44d209faf1927fa2e35b6a5ed4bfcf7f9e95311caa457e652`.
+* Frozen-test child ID: `2a134c77c650d692256fb5e6731427b0510f370a7a3bd4ab6e4fe9ec42e59cba`.
 * Validation: total return `0.008904678140710498`, Sharpe `0.0998354956538619`, maximum drawdown
   `-0.15825769289200498`, turnover `14.71925503122003`, 91 fills.
 * Frozen test: total return `0.6133677934147121`, CAGR `0.15140120956661973`, annualized volatility
   `0.15206534486035`, Sharpe `1.0038687475110417`, Sortino `1.385055464191464`, Calmar
   `0.8302799593241411`, maximum drawdown `-0.1823495892757213`, maximum drawdown duration 230,
   turnover `9.660430549076484`, and 60 fills.
-* Primary benchmark excess total return: `0.6133677934147121`; tracking error
-  `0.1073520447276568`; information ratio `0.7076847215342064`; alpha `0.07597140187921947`;
-  beta and correlation `0.0`; active drawdown `-0.18234958927572154`.
+* Corrected primary benchmark total return: `0.6403372535000003`; annualized volatility
+  `0.11943413109550455`. Corrected frozen-test excess total return: `-0.02696946008528811`;
+  tracking error `0.09933678617504374`; information ratio `-0.0378890073288071`; alpha
+  `0.03147363789246453`; beta `0.5580694403666174`; correlation `0.62087814787537`; active
+  drawdown `-0.22062305450564346`.
 * Closed-loop total returns: base `0.6133677934147121`, moderate `0.5996080088463458`, severe
   `0.4042692027613799`. Fixed-path final equities were CNY `161336.7793414712`,
   `160478.8318767846`, and `158634.52465613803`; base reconciliation passed within CNY 0.000001.
@@ -84,7 +93,7 @@ proving sealed cache reuse.
 ## 5. Walk-forward
 
 Walk-forward experiment ID:
-`8df3f6b0ee01068041215d1db755b4b46fdd30f614c0d0a1aa86c55cdc9efa3d`. Nine nonoverlapping OOS
+`9d4855b06c7156505745980cebb7cc2a10adb93d061827c8a76fe48f3af2a98d`. Nine nonoverlapping OOS
 folds were produced. Every fold selected momentum 126, top-k 2, no trend filter, and no volatility
 weighting. Stitched OOS total return was `0.2087338448268714`, CAGR `0.04306615849496187`,
 annualized volatility `0.17214046812437064`, Sharpe `0.3313490133072057`, Sortino
@@ -92,10 +101,24 @@ annualized volatility `0.17214046812437064`, Sharpe `0.3313490133072057`, Sortin
 maximum drawdown duration 500. The second identical command returned the same experiment directory,
 proving sealed cache reuse.
 
+### Walk-forward sealed identities
+
+| Fold | Fold ID | Selected candidate ID | Test-child ID |
+|---:|---|---|---|
+| 0 | `19f7f4e4d1a87ef01318dbe1f6831ad38874a816233872fdb02947b03cd012a5` | `b9927b4ad47a7808d5affb10c8c8ac2511d13a5cbb3987873678b89e3dda7fbe` | `862e22010b35b4ab16b79b67c366981d80b08f80e3366b8580d19935914f5be8` |
+| 1 | `b185aea236b15160d8d4ecdad51df82d469ca7464f99620bf024eefbd521bda2` | `8dafbb8bedcc52a3365ac2475436b512a560c023f864ccf9316ffd40dbacdf82` | `60725c191e0c1895349f58b8d8f8b4a46254a568b9da6cc821b2681f1af3ea0b` |
+| 2 | `3145295feeaa0efffac29c6f3dea9d240e821f32a9ab486d164b29fc8135b782` | `d0d6ae93ab0c7bd8a070b7d415c3f5143d82583662cf3fc35ffa1f660b714872` | `8533427790a0567086531dff35e92a451644a013f1f65950525549f99e9532e8` |
+| 3 | `dfe92b3f10cd959e8724912498e2bf80830d2c49372bc2f8dc77338753889af5` | `c2af12d04a5eb8df62005351c02d70c37ea0be747b30cf3aa36215b2e46e2bb2` | `abbb429d1662fb6a1fb7e7c29e0be7d96340948e8a398ffc64e9ae7d848213c7` |
+| 4 | `5ef89828468ba2a2b121c84fb547fe5b496f74dd9d74215e434d40d18b925c68` | `63227b7a4ca11438ca47c411bcfc45f7d3fb71b44c5097c6573447a3deb290a7` | `351a11e382e21b18229ca5973fbfac844eb2274d3bd2a0e44b603dd8a45f20a5` |
+| 5 | `2ff1f1c48403043b2a864608ba9dee34a048b80542df84b3acaeb2d48b34a695` | `a91c9c8c08f278b32e479d528e1c8dc067c20d15615cb72dc79224688170e1b9` | `0f32e7065f888df45070d9d47a88c63316685deacd59a16afa6a9bd63b19e354` |
+| 6 | `88f80a5a28bad1b22f8f348edb16e6e146024c2eb3aa42d8c8eaa031c27be98a` | `24e1038c7abdd4d1c2ce67bed86767b3abfaf1f00d12c38ea9f9886336d0e0e3` | `f9bc1d8f38c4f18f71b7b5f90d0d33f4b2ab8879702cfd21434a06e8a3c1ce36` |
+| 7 | `3c45d06a15ac81627f64240596fb848c8a7799e6de0d8d1ce8636e5099cee9e8` | `d2fa63c3b7355c1e392e57f5473499fd55d3ec53439397f48a404bd9e1c86a9b` | `59bc7490287a2811424353435ee3199e6b1a986d272d22350242851d7bab7fc7` |
+| 8 | `a8aca59e700952b1e218aabc842eef57c824929f70625a15e2514360c4648b74` | `6250dcc30667b5328dfe183aa8b60815075a671e4d3f938d35af81fd11e864c3` | `88af287cb8c71a059712ae9cb267c996d09e1b9e0f12a54ff1da1f32577466b0` |
+
 ## 6. Independent audits
 
-The fixed audit passed 28 distinct checks over one frozen-test bundle. The walk-forward audit passed
-33 distinct checks over nine bundles. Together these covered recursive artifact hashes and
+The fixed audit passed 36 distinct checks over one frozen-test bundle. The walk-forward audit passed
+41 distinct checks over nine bundles. Together these covered recursive artifact hashes and
 identities, exact data hashes and qfq consistency, selected-only tests, accounting, trades/fills,
 next-open and warm-up boundaries, official listing dates, benchmark alignment and reconstruction,
 cost replay and monotonicity, fold identities, nonoverlapping OOS dates, and stitched equity,
@@ -106,20 +129,29 @@ as strings. The auditor now compares quantity as an integer and price/commission
 retaining exact categorical matching and tolerance checks. A regression test covers equivalent
 numeric formatting. No result artifact or frozen value was changed.
 
+## 6.1 Corrected source and benchmark evidence
+
+The corrected artifacts use source commit `ca9d491f714aa05ef771d887bd407fd27b3103d6` and source-tree
+SHA-256 `bd653e72fd3c7ee46e84bfc1cb20cfb294262e7cfa0af5b24cb501fae4521fef`. The benchmark now emits
+its equal nine-way target on the first execution-eligible signal date, executes strictly later, and
+holds without periodic rebalancing. Sealed benchmark cash, orders, fills, positions, marks, weights,
+and equity support independent checks for nonconstant equity, actual investment, no warm-up activity,
+equal initial targets, accounting, total return, relative metrics, and strategy excess return.
+
 ## 7. Mechanical judgment
 
-All exact inputs and frozen thresholds supplied to `evaluate_strategy_judgment(...)` are persisted
-in `sit_real_market_judgment_inputs.json`. The function returned `CONDITIONAL`. The moderate equity
-ratio was `0.9914713900794787`; the severe closed-loop equity ratio was `0.8703962038248126`, below
-the frozen 0.90 conditional threshold. Therefore PASS is unavailable.
+All supplied inputs and frozen thresholds are persisted in `sit_real_market_judgment_inputs.json`.
+`evaluate_strategy_judgment(...)` returned `CONDITIONAL`. The result is **provisional**, because
+`diagnostic_status = INCOMPLETE`: ETF/calendar-year positive-P&L concentration and adjacent
+one-factor excess-return sign reversal were not measured. No placeholder observation is supplied.
+Independently, corrected frozen-test excess return is negative and the severe closed-loop equity
+ratio is `0.8703962038248126`, below the frozen 0.90 conditional threshold, so PASS is unavailable.
 
 ## 8. Limitations
 
 * The sealed runner does not emit ETF/year P&L attribution or one-factor frozen-test diagnostic
-  bundles. To avoid inventing favorable evidence or testing unselected candidates formally, the
-  judgment call conservatively supplied contribution share `1.0` and neighbor reversal `true`.
-  Either independently triggers CONDITIONAL; these are explicit conservative bounds, not observed
-  diagnostic estimates.
+  bundles. These diagnostics are explicitly `INCOMPLETE`; no concentration value or reversal flag
+  is presented as measured evidence.
 * CSV market data and generated result bundles remain Git-ignored. The small immutable manifest is
   committed, while the report records every identity and exact artifact-relative location.
 * AKShare/Eastmoney data and listing metadata can contain the noted 512100 pre-official-listing
@@ -133,6 +165,6 @@ the frozen 0.90 conditional threshold. Therefore PASS is unavailable.
 PYTHONPATH=src python -m kelaode.data_cli download --symbols 510300,510500,159915,512100,512880,512480,518880,513100,511010 --start 2005-01-01 --end 2026-07-17 --output <new-staging-directory> --adjust qfq --retries 2 --format csv
 PYTHONPATH=src python -m kelaode.experiment_cli grid-search --config configs/validation/sit_real_market_fixed.json
 PYTHONPATH=src python -m kelaode.experiment_cli walk-forward --config configs/validation/sit_real_market_walk_forward.json
-PYTHONPATH=src python -m kelaode.validation_audit --artifacts results/sit-real-market-fixed/135d2262f8a2ecbd354eb68a80906557c671e64064c33b913ae3cf5cfef055cb
-PYTHONPATH=src python -m kelaode.validation_audit --artifacts results/sit-real-market-walk-forward/8df3f6b0ee01068041215d1db755b4b46fdd30f614c0d0a1aa86c55cdc9efa3d
+PYTHONPATH=src python -m kelaode.validation_audit --artifacts results/sit-real-market-fixed/6d7ee7cfe8707ae5f9d4ea5de39e593f2625b709f3ffb9a3ee7b64374b861f83
+PYTHONPATH=src python -m kelaode.validation_audit --artifacts results/sit-real-market-walk-forward/9d4855b06c7156505745980cebb7cc2a10adb93d061827c8a76fe48f3af2a98d
 ```

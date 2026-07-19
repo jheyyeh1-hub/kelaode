@@ -1,23 +1,24 @@
 {
-  "diagnostic_input_treatment": {
-    "max_positive_contribution_share": "Conservative upper bound of 1.0 because the sealed runner does not emit attribution by ETF and calendar year.",
-    "neighbor_sign_reversal": "Conservatively true because sealed one-factor frozen-test diagnostic bundles are unavailable; no unselected formal test was run."
-  },
+  "diagnostic_status": "INCOMPLETE",
   "judgment_function": "evaluate_strategy_judgment(...)",
+  "judgment_status": "PROVISIONAL",
   "metrics": {
     "audits_pass": true,
+    "diagnostic_status": "INCOMPLETE",
     "evaluated": true,
-    "frozen_test_excess_return": 0.6133677934147121,
+    "frozen_test_excess_return": -0.02696946008528811,
     "frozen_test_return": 0.6133677934147121,
-    "max_positive_contribution_share": 1.0,
     "moderate_equity_ratio": 0.9914713900794787,
-    "neighbor_sign_reversal": true,
     "post_result_protocol_change": false,
     "severe_equity_ratio": 0.8703962038248126,
     "stitched_max_drawdown": -0.18885492807755855,
     "stitched_oos_return": 0.2087338448268714
   },
-  "schema_version": "1.0",
+  "missing_diagnostics": [
+    "maximum positive P&L contribution share by ETF/calendar year",
+    "adjacent one-factor frozen-test excess-return sign reversal"
+  ],
+  "schema_version": "2.0",
   "strategy_judgment": "CONDITIONAL",
   "thresholds": {
     "conditional_contribution_share_gt": 0.6,

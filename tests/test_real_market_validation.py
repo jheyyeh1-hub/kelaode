@@ -98,6 +98,14 @@ def test_judgment_conditional_triggers(thresholds, change):
     assert evaluate_strategy_judgment(_passing_metrics(**change), thresholds) == "CONDITIONAL"
 
 
+def test_incomplete_diagnostics_are_provisionally_conditional_without_placeholders(thresholds):
+    metrics = _passing_metrics()
+    metrics.pop("max_positive_contribution_share")
+    metrics.pop("neighbor_sign_reversal")
+    metrics["diagnostic_status"] = "INCOMPLETE"
+    assert evaluate_strategy_judgment(metrics, thresholds) == "CONDITIONAL"
+
+
 def test_report_status_matches_mechanical_judgment(thresholds):
     report = open("docs/validation/sit_real_market_report.md", encoding="utf-8").read()
     persisted = json.loads(open(
