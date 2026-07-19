@@ -161,7 +161,18 @@ def _metrics(bundle: Path, dates: Sequence[date]) -> dict[str, float]:
     with (bundle / "trades.csv").open(newline="", encoding="utf-8") as stream:
         trades = [{**row, "notional": float(row["price"]) * int(row["quantity"])}
                   for row in csv.DictReader(stream) if row["date"] in wanted]
-    return performance_metrics(values, trades)
+    metrics = performance_metrics(values, trades)
+    # Concentration is a preregistered selection diagnostic, not a strategy
+    # input.  Compute mean rebalance-date HHI from the strategy's sealed daily
+    # diagnostics so candidates can be compared without a duplicate pipeline.
+    audits = json.loads((bundle / "daily_audits.json").read_text(encoding="utf-8"))
+    concentration = [float(row["strategy_diagnostics"]["target_concentration"])
+                     for row in audits if row["date"] in wanted
+                     and isinstance(row.get("strategy_diagnostics"), Mapping)
+                     and row["strategy_diagnostics"].get("rebalance")]
+    metrics["target_concentration"] = (sum(concentration) / len(concentration)
+                                         if concentration else 0.0)
+    return metrics
 
 
 def stitch_oos_equity(fold_paths: Sequence[Sequence[Mapping[str, Any]]],
@@ -230,7 +241,21 @@ def _rank(config: ExperimentConfig, rows: list[dict]) -> dict:
         for rule in tie_rules:
             if rule == "canonical_parameters": tie.append(canonical_json(row["parameters"]))
             elif rule.startswith("parameter:"): tie.append(canonical_json(row["parameters"].get(rule.split(":",1)[1])))
-            elif rule.startswith("metric:"): tie.append(float(row["validation_metrics"].get(rule.split(":",1)[1], float("inf"))))
+            elif rule.startswith("parameter_desc:"):
+                value = row["parameters"].get(rule.split(":", 1)[1])
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    raise ValueError("descending parameter tie-break requires a numeric parameter")
+                tie.append(-float(value))
+            elif rule.startswith("metric_desc:"):
+                metric = rule.split(":", 1)[1]
+                if metric not in row["validation_metrics"]:
+                    raise ValueError(f"tie-break metric is missing: {metric}")
+                tie.append(-float(row["validation_metrics"][metric]))
+            elif rule.startswith("metric:"):
+                metric = rule.split(":", 1)[1]
+                if metric not in row["validation_metrics"]:
+                    raise ValueError(f"tie-break metric is missing: {metric}")
+                tie.append(float(row["validation_metrics"][metric]))
             elif rule == "lower_complexity":
                 p = row["parameters"]
                 tie.append(int(p.get("trend_window") is not None) + int(p.get("volatility_lookback") is not None))

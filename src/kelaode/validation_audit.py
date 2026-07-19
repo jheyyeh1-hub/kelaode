@@ -21,6 +21,19 @@ from .snapshot import sha256_file
 
 _TOLERANCE = 1e-6
 _DEFAULT_POLICY = Path(__file__).parents[2] / "configs/validation/sit_validation_policy.json"
+_TSMOM_POLICY = Path(__file__).parents[2] / "configs/validation/tsmom_validation_policy.json"
+
+
+def default_validation_policy(strategy_class: str) -> Path:
+    """Return the committed policy for a formal strategy, with no fallback."""
+    policies = {
+        "SITMomentumRotationStrategy": _DEFAULT_POLICY,
+        "TimeSeriesTrendStrategy": _TSMOM_POLICY,
+    }
+    try:
+        return policies[strategy_class]
+    except KeyError as exc:
+        raise ValueError(f"no committed validation policy for {strategy_class}") from exc
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -366,7 +379,7 @@ def _audit_costs(costs: Mapping[str, Any], config: Mapping[str, Any], bundle: Pa
             "fixed_path_base_reconciliation", "fixed_path_scenario_reconstruction", "fixed_path_cost_monotonicity"]
 
 
-def audit_selection(root: str | Path, policy_path: str | Path = _DEFAULT_POLICY) -> dict:
+def audit_selection(root: str | Path, policy_path: str | Path | None = None) -> dict:
     """Audit immutable results without importing a strategy or rerunning selection."""
     root, checks = Path(root), []
     validate_artifact_directory(root)
@@ -381,7 +394,8 @@ def audit_selection(root: str | Path, policy_path: str | Path = _DEFAULT_POLICY)
     if parent["canonical_inputs"].get("manifest_hash") != manifest.hash or parent["canonical_inputs"].get("input_hashes") != [e.sha256 for e in manifest.entries]:
         raise ValueError("parent data identity mismatch")
     checks.extend(("data_hashes", "consistent_adjustment", "parent_data_identity"))
-    policy = _json(Path(policy_path))
+    policy = _json(Path(policy_path) if policy_path is not None
+                   else default_validation_policy(config["strategy_class"]))
     official = policy.get("official_listing_dates")
     if not isinstance(official, dict):
         raise ValueError("immutable protocol metadata has no official listing dates")
@@ -465,6 +479,8 @@ def audit_selection(root: str | Path, policy_path: str | Path = _DEFAULT_POLICY)
 
     for bundle, parameters, dates, test_id, costs in bundles:
         run_checks = _audit_run(bundle, official, dates, {**config["strategy_parameters"], **parameters}, test_id)
+        if config["strategy_class"] == "TimeSeriesTrendStrategy":
+            run_checks.extend(audit_time_series_trend_diagnostics(bundle))
         turnover = float(next(x.split("=", 1)[1] for x in run_checks if x.startswith("reconstructed_turnover=")))
         expected_metrics = result["test_metrics"] if result["mode"] == "fixed_selection" else next(f["test_metrics"] for f in result["folds"] if f["test_child_experiment_id"] == test_id)
         _close(turnover, float(expected_metrics["turnover"]), "test-period turnover", 1e-10)
@@ -477,7 +493,7 @@ def audit_selection(root: str | Path, policy_path: str | Path = _DEFAULT_POLICY)
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m kelaode.validation_audit")
     parser.add_argument("--artifacts", required=True)
-    parser.add_argument("--policy", default=str(_DEFAULT_POLICY))
+    parser.add_argument("--policy")
     args = parser.parse_args(argv)
     print(json.dumps(audit_selection(args.artifacts, args.policy), indent=2, sort_keys=True))
     return 0

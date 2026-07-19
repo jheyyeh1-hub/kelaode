@@ -1,0 +1,51 @@
+{
+  "default_for_strategy": "TimeSeriesTrendStrategy",
+  "economic_classes": {
+    "159915": "China growth equity (ChiNext)",
+    "510300": "China large-cap equity (CSI 300)",
+    "510500": "China mid/small-cap equity (CSI 500)",
+    "511010": "China government bonds",
+    "512100": "China small-cap equity (CSI 1000)",
+    "512480": "China semiconductor-sector equity",
+    "512880": "China securities-sector equity",
+    "513100": "US large-cap technology/growth equity (NASDAQ-100)",
+    "518880": "Gold commodity"
+  },
+  "official_listing_dates": {
+    "159915": "2011-12-09",
+    "510300": "2012-05-28",
+    "510500": "2013-03-15",
+    "511010": "2013-03-25",
+    "512100": "2017-08-25",
+    "512480": "2019-06-12",
+    "512880": "2016-08-08",
+    "513100": "2013-05-15",
+    "518880": "2013-07-29"
+  },
+  "protocol": "docs/validation/tsmom_real_market_protocol.md",
+  "schema_version": "1.0",
+  "snapshot_reuse": {
+    "adjustment": "qfq",
+    "endpoint": "fund_etf_hist_em",
+    "manifest": "data/snapshots/sit-20260719/manifest.json",
+    "manifest_sha256": "682e83a62e8acc3d4ef3a45c32174a6eff2e668df101bb12e02104d847141643",
+    "provider": "AKShare/Eastmoney",
+    "requested_end": "2026-07-17",
+    "requested_start": "2005-01-01",
+    "require_all_file_hashes": true,
+    "require_exact_universe": true
+  },
+  "thresholds": {
+    "conditional_contribution_share_gt": 0.6,
+    "conditional_severe_equity_ratio_lt": 0.9,
+    "fail_frozen_test_return_le": -0.2,
+    "fail_moderate_equity_ratio_lt": 0.9,
+    "fail_stitched_max_drawdown_lt": -0.5,
+    "fail_stitched_oos_return_le": -0.2,
+    "pass_frozen_test_excess_return_gt": 0.0,
+    "pass_frozen_test_return_gt": 0.0,
+    "pass_moderate_equity_ratio_ge": 0.95,
+    "pass_stitched_max_drawdown_ge": -0.35,
+    "pass_stitched_oos_return_gt": 0.0
+  }
+}

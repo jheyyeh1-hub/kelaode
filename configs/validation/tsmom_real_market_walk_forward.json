@@ -1,0 +1,172 @@
+{
+  "allow_mixed_adjustments": false,
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbols": [
+      "510300",
+      "510500",
+      "159915",
+      "512100",
+      "512880",
+      "512480",
+      "518880",
+      "513100",
+      "511010"
+    ],
+    "type": "equal_weight_buy_and_hold"
+  },
+  "constraint_parameters": {
+    "cash_buffer": 0.01,
+    "max_gross_exposure": 1.0,
+    "max_single_weight": 1.0
+  },
+  "constructor_parameters": {},
+  "cost_analysis": {
+    "closed_loop": {
+      "base": {
+        "commission_rate": 0.00025,
+        "minimum_commission": 5,
+        "slippage_rate": 0.0005
+      },
+      "moderate": {
+        "commission_rate": 0.0005,
+        "minimum_commission": 5,
+        "slippage_rate": 0.001
+      },
+      "severe": {
+        "commission_rate": 0.001,
+        "minimum_commission": 10,
+        "slippage_rate": 0.002
+      }
+    },
+    "fixed_path": {
+      "base": {
+        "commission_rate": 0.00025,
+        "minimum_commission": 5,
+        "slippage_rate": 0.0005
+      },
+      "moderate": {
+        "commission_rate": 0.0005,
+        "minimum_commission": 5,
+        "slippage_rate": 0.001
+      },
+      "severe": {
+        "commission_rate": 0.001,
+        "minimum_commission": 10,
+        "slippage_rate": 0.002
+      }
+    }
+  },
+  "data_alignment_mode": "union",
+  "data_manifest": "data/snapshots/sit-20260719/manifest.json",
+  "data_root": "data/snapshots/sit-20260719",
+  "diagnostic_only": false,
+  "end_date": "2026-07-17",
+  "execution_parameters": {
+    "execution_timing": "next_open",
+    "lot_size": 100,
+    "partial_fill_policy": "partial_fill",
+    "participation_rate": 0.1
+  },
+  "experiment_mode": "walk_forward",
+  "experiment_name": "tsmom-real-market-walk-forward-20260719",
+  "fee_parameters": {
+    "commission_rate": 0.00025,
+    "minimum_commission": 5
+  },
+  "initial_cash": 100000,
+  "notes": "Preregistered by docs/validation/tsmom_real_market_protocol.md before formal execution; no formal result or economic claim.",
+  "output_directory": "results/tsmom-real-market-walk-forward",
+  "parameter_selection": {
+    "failure_policy": "continue",
+    "metric_constraints": [
+      {
+        "metric": "total_return",
+        "operator": "gt",
+        "value": 0.0
+      },
+      {
+        "metric": "max_drawdown",
+        "operator": "ge",
+        "value": -0.35
+      }
+    ],
+    "minimum_observations": 252,
+    "objective_direction": "maximize",
+    "parameter_constraints": [],
+    "parameter_grid": {
+      "maximum_active_assets": [
+        null,
+        3,
+        5
+      ],
+      "rebalance_frequency": [
+        5,
+        21
+      ],
+      "signal_buffer": [
+        0.0,
+        0.02
+      ],
+      "trend_lookback": [
+        63,
+        126,
+        252
+      ],
+      "volatility_lookback": [
+        21,
+        63
+      ]
+    },
+    "selection_objective": "sharpe",
+    "tie_break_rules": [
+      "metric_desc:max_drawdown",
+      "metric:turnover",
+      "metric:target_concentration",
+      "parameter_desc:trend_lookback",
+      "parameter_desc:rebalance_frequency",
+      "canonical_parameters"
+    ]
+  },
+  "portfolio_constructor": "strategy-native",
+  "random_seed": 0,
+  "resource_limits": {
+    "execution": "serial",
+    "maximum_candidate_count": 72,
+    "maximum_folds": 12
+  },
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.0005
+  },
+  "split_definitions": {
+    "step_observations": 126,
+    "test_observations": 126,
+    "train_observations": 504,
+    "type": "rolling",
+    "validation_observations": 252,
+    "warmup_observations": 253
+  },
+  "start_date": "2019-06-12",
+  "strategy_class": "TimeSeriesTrendStrategy",
+  "strategy_parameters": {
+    "maximum_active_assets": null,
+    "rebalance_frequency": 21,
+    "signal_buffer": 0.02,
+    "trend_lookback": 252,
+    "volatility_lookback": 63
+  },
+  "universe": [
+    "510300",
+    "510500",
+    "159915",
+    "512100",
+    "512880",
+    "512480",
+    "518880",
+    "513100",
+    "511010"
+  ],
+  "warmup_policy": "history_only"
+}
