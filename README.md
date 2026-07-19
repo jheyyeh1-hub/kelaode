@@ -122,3 +122,12 @@ print(result.total_return, result.turnover, result.positions_by_date)
 See [the strategy SDK](docs/strategy_sdk.md) for target-weight, ranking, and signal strategies.
 `CrossSectionalMomentumRotation(lookback=60, top_k=3)` provides a point-in-time momentum example.
 For importing signal formulas safely, see the [adaptation guide](docs/open_source_strategy_adaptation.md).
+# Kelaode
+
+## Strategy experiments
+
+The reproducible experiment layer provides canonical JSON configurations,
+Git/data provenance, trading-day fixed and walk-forward splits, deterministic
+grid search, robust performance and benchmark statistics, cost scenarios, and
+a complete report directory. See [the experiment guide](docs/experiments.md)
+and [`configs/example_momentum.json`](configs/example_momentum.json).
