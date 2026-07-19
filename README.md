@@ -28,4 +28,33 @@ pytest
 
 查看设计细节：[`docs/mainland_broker_quant_system.md`](docs/mainland_broker_quant_system.md)。
 
+## A 股 ETF 日频回测
+
+新增的研究闭环负责从 AKShare 获取 ETF 前复权日线、生成只使用当日及历史收盘价的信号，
+并在下一交易日开盘执行。引擎内置 A 股 100 份申购单位、佣金、最低佣金和滑点模型，输出
+成交记录、每日资金/持仓/权益，以及总收益、年化收益、最大回撤和夏普比率。
+
+安装数据依赖并下载数据：
+
+```python
+from kelaode import AKShareETFDownloader
+
+AKShareETFDownloader().download_csv(
+    "510300", "20230101", "20231231", "data/510300.csv"
+)
+```
+
+运行一个完整回测：
+
+```python
+from kelaode import ETFBacktester, MovingAverageCrossStrategy, read_daily_bars
+
+bars = read_daily_bars("data/510300.csv")
+result = ETFBacktester().run(bars, MovingAverageCrossStrategy(5, 20))
+print(result.total_return, result.max_drawdown, result.trades)
+```
+
+AKShare 是可选依赖：下载真实行情前运行 `pip install -e '.[data]'`；只运行离线回测和测试
+无需安装 AKShare。策略在交易日收盘生成目标仓位，次日开盘成交，从而避免未来函数。
+
 > 提醒：本项目是工程研究原型，不构成投资建议。任何实盘接入前都必须完成合规确认、券商接口授权、仿真验证和小额灰度。
