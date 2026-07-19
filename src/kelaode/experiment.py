@@ -17,6 +17,9 @@ from datetime import date, datetime, timezone
 from importlib import metadata
 from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol, Sequence
+from .snapshot import SnapshotManifest, canonical_json
+
+EXPERIMENT_SCHEMA_VERSION = "2.0"
 
 
 def _canonical(value: Any) -> str:
@@ -42,10 +45,26 @@ class ExperimentConfig:
     random_seed: int = 0
     output_directory: str = "results"
     notes: str = ""
+    schema_version: str = EXPERIMENT_SCHEMA_VERSION
+    data_manifest: str = ""
+    data_root: str = ""
+    slippage_parameters: Mapping[str, Any] = field(default_factory=dict)
+    split_definitions: Mapping[str, Any] = field(default_factory=dict)
+    benchmark_definitions: Mapping[str, Any] = field(default_factory=dict)
+    allow_mixed_adjustments: bool = False
+    diagnostic_only: bool = False
 
     def __post_init__(self):
-        if self.initial_cash <= 0 or self.start_date > self.end_date:
+        if self.schema_version != EXPERIMENT_SCHEMA_VERSION:
+            raise ValueError(f"unsupported experiment schema: {self.schema_version}")
+        if self.initial_cash <= 0 or self.start_date > self.end_date or not self.universe:
             raise ValueError("invalid cash or date range")
+        if len(self.universe) != len(set(self.universe)):
+            raise ValueError("universe symbols must be unique")
+        if self.allow_mixed_adjustments and not self.diagnostic_only:
+            raise ValueError("mixed adjustments may only be enabled for diagnostic-only runs")
+        if not self.data_manifest or not self.data_root:
+            raise ValueError("data_manifest and data_root are required")
         # Fail early rather than producing an experiment that cannot be restored.
         _canonical(asdict(self))
 
@@ -65,6 +84,17 @@ class ExperimentConfig:
         candidate = None if text.lstrip().startswith(("{", "[")) else Path(source)
         raw = candidate.read_text(encoding="utf-8") if candidate is not None else text
         data = json.loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError("experiment configuration must be an object")
+        fields = set(cls.__dataclass_fields__)
+        unknown = set(data) - fields
+        required = {"schema_version", "experiment_name", "universe", "start_date", "end_date",
+                    "strategy_class", "portfolio_constructor", "initial_cash", "fee_parameters",
+                    "slippage_parameters", "execution_parameters", "constraint_parameters",
+                    "benchmark_definitions", "output_directory", "split_definitions", "data_manifest", "data_root"}
+        missing = required - set(data)
+        if unknown or missing:
+            raise ValueError(f"configuration fields invalid; unknown={sorted(unknown)}, missing={sorted(missing)}")
         data["universe"] = tuple(data["universe"])
         return cls(**data)
 
@@ -251,13 +281,23 @@ def walk_forward_select(
     callback and its serialized state should be loaded by the test callback.
     """
     output = []
+    oos_dates: set[date] = set()
     for number, fold in enumerate(folds):
+        if tuple(sorted(fold.test)) != fold.test or oos_dates.intersection(fold.test):
+            raise ValueError("out-of-sample dates must be unique and ordered")
+        oos_dates.update(fold.test)
         candidates = search.run(lambda p: evaluate_validation(fold, p))
         selected = search.select(candidates)
         test_metrics = dict(evaluate_test(fold, selected.parameters))
         output.append(
             {
                 "fold": number,
+                "boundaries": {
+                    "train": [str(x) for x in fold.train],
+                    "validation": [str(x) for x in fold.validation],
+                    "test": [str(x) for x in fold.test],
+                    "warmup": [str(x) for x in fold.warmup],
+                },
                 "selected_parameters": dict(selected.parameters),
                 "validation_metrics": dict(selected.metrics),
                 "test_metrics": test_metrics,
@@ -266,9 +306,8 @@ def walk_forward_select(
     return tuple(output)
 
 
-def experiment_metadata(
-    config: ExperimentConfig, manifest_path="", symbols=(), actual_dates=()
-) -> dict:
+def experiment_metadata(config: ExperimentConfig, manifest_path="", symbols=(), actual_dates=(),
+                        *, git_sha=None, dependency_versions=None) -> dict:
     def version(name):
         try:
             return metadata.version(name)
@@ -276,17 +315,16 @@ def experiment_metadata(
             return None
 
     try:
-        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        sha = git_sha or subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     except (OSError, subprocess.CalledProcessError):
         sha = "unknown"
     manifest = Path(manifest_path) if manifest_path else None
     return {
-        "experiment_id": config.experiment_id,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit_sha": sha,
         "python_version": platform.python_version(),
         "kelaode_version": version("kelaode") or "0.1.0",
-        "dependency_versions": {
+        "dependency_versions": dependency_versions or {
             x: version(x) for x in ("numpy", "pandas", "matplotlib")
         },
         "data_manifest_path": str(manifest or ""),
@@ -300,28 +338,59 @@ def experiment_metadata(
         "portfolio_constructor_parameters": dict(config.constructor_parameters),
         "execution_parameters": dict(config.execution_parameters),
         "fee_parameters": dict(config.fee_parameters),
+        "slippage_parameters": dict(config.slippage_parameters),
         "random_seed": config.random_seed,
     }
 
+def experiment_identity(config: ExperimentConfig, manifest: SnapshotManifest,
+                        provenance: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Return the complete canonical identity; timestamps are intentionally excluded."""
+    meta = dict(provenance or experiment_metadata(config, config.data_manifest))
+    meta.pop("created_at_utc", None)
+    payload = {
+        "experiment_schema_version": EXPERIMENT_SCHEMA_VERSION,
+        "configuration": asdict(config),
+        "ordered_universe": list(config.universe),
+        "strategy": {"class": config.strategy_class, "parameters": dict(config.strategy_parameters)},
+        "portfolio_constructor": {"class": config.portfolio_constructor, "parameters": dict(config.constructor_parameters)},
+        "constraints": dict(config.constraint_parameters), "initial_cash": config.initial_cash,
+        "fees": dict(config.fee_parameters), "slippage": dict(config.slippage_parameters),
+        "execution": dict(config.execution_parameters), "benchmarks": dict(config.benchmark_definitions),
+        "splits": dict(config.split_definitions), "manifest_hash": manifest.hash,
+        "input_hashes": [x.sha256 for x in manifest.entries], "provenance": meta,
+    }
+    digest = hashlib.sha256(canonical_json(payload).encode()).hexdigest()
+    return {"experiment_id": digest, "canonical_inputs": payload}
 
-REQUIRED_OUTPUTS = (
-    "metrics.json benchmark_metrics.json equity_curve.csv benchmark_curve.csv drawdown.csv trades.csv orders.csv fills.csv rejections.csv daily_audits.csv positions.csv weights.csv monthly_returns.csv yearly_returns.csv parameter_results.csv fold_results.csv selected_parameters.json report.md equity_curve.png drawdown.png monthly_returns.png"
-).split()
+
+REQUIRED_OUTPUTS = ("metrics.json benchmark_metrics.json equity_curve.csv cash.csv benchmark_curve.csv "
+ "drawdown.csv exposure.csv turnover.csv trades.csv orders.csv validated_orders.csv fills.csv "
+ "rejections.csv daily_audits.json positions.csv weights.csv parameter_results.csv fold_results.json "
+ "selected_parameters.json runtime.json configuration.json identity.json data_manifest.json").split()
 
 
-def initialize_output(
-    config: ExperimentConfig, metadata_value: Mapping[str, Any] | None = None
-) -> Path:
-    """Create an atomic experiment namespace and its complete output contract."""
+def initialize_output(config: ExperimentConfig, metadata_value: Mapping[str, Any] | None = None,
+                      *, identity: Mapping[str, Any] | None = None) -> Path:
+    """Create an experiment namespace, rejecting stale or partial cache reuse."""
     random.seed(config.random_seed)
-    root = Path(config.output_directory) / config.experiment_id
-    root.mkdir(parents=True, exist_ok=True)
+    ident = dict(identity or {"experiment_id": config.experiment_id})
+    root = Path(config.output_directory) / str(ident["experiment_id"])
+    if root.exists():
+        identity_path = root / "identity.json"
+        if not identity_path.exists() or canonical_json(json.loads(identity_path.read_text())) != canonical_json(ident):
+            raise ValueError("result directory exists without an exact identity match")
+        return root
+    root.mkdir(parents=True)
     config.to_json(root / "config.json")
     (root / "metadata.json").write_text(
         json.dumps(metadata_value or experiment_metadata(config), indent=2) + "\n"
     )
+    (root / "identity.json").write_text(json.dumps(ident, sort_keys=True, indent=2) + "\n")
+    (root / "configuration.json").write_text(config.to_json() + "\n")
     for name in REQUIRED_OUTPUTS:
         path = root / name
+        if path.exists():
+            continue
         if name.endswith(".json"):
             path.write_text("{}\n")
         elif name.endswith(".md"):
@@ -329,13 +398,5 @@ def initialize_output(
         elif name.endswith(".csv"):
             path.write_text("")
         else:
-            try:
-                import matplotlib.pyplot as plt
-
-                plt.figure()
-                plt.title(name[:-4].replace("_", " "))
-                plt.savefig(path)
-                plt.close()
-            except ImportError:
-                path.touch()
+            raise AssertionError(f"output contract lacks format: {name}")
     return root

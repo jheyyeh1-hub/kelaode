@@ -1,7 +1,8 @@
 """Command line entry points for reproducible experiments."""
 
 import argparse
-from .experiment import ExperimentConfig, initialize_output
+from .experiment import ExperimentConfig
+from .runner import run_experiment
 
 
 def main(argv=None):
@@ -12,7 +13,7 @@ def main(argv=None):
         p.add_argument("--config", required=True)
     args = parser.parse_args(argv)
     config = ExperimentConfig.from_json(args.config)
-    path = initialize_output(config)
+    path = run_experiment(config)
     print(f"{args.command}: {path}")
     return 0
 

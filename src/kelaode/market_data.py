@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import time
 import warnings
@@ -190,8 +191,9 @@ class AKShareETFDownloader:
         root = Path(output_dir); root.mkdir(parents=True, exist_ok=True)
         entries: list[dict[str, Any]] = []
         for symbol in symbols:
-            entry: dict[str, Any] = {"symbol": symbol, "data_source": "AKShare/Eastmoney",
-                "adjust": adjust, "requested_start": requested_start.isoformat(),
+            entry: dict[str, Any] = {"symbol": symbol, "provider": "AKShare/Eastmoney",
+                "endpoint": "fund_etf_hist_em", "adjustment": adjust or "unadjusted",
+                "requested_start": requested_start.isoformat(),
                 "requested_end": requested_end.isoformat(), "schema_version": SCHEMA_VERSION,
                 "downloaded_at": datetime.now(timezone.utc).isoformat()}
             error: Exception | None = None
@@ -203,9 +205,11 @@ class AKShareETFDownloader:
                     validate_bars(bars, requested_start, requested_end)
                     path = root / f"{symbol}.{file_format}"
                     write_daily_bars(path, bars)
-                    entry.update(status="success", error=None, row_count=len(bars),
-                                 actual_first=bars[0].trade_date.isoformat(),
-                                 actual_last=bars[-1].trade_date.isoformat(), file_path=path.name)
+                    entry.update(row_count=len(bars), actual_start=bars[0].trade_date.isoformat(),
+                                 actual_end=bars[-1].trade_date.isoformat(), file_format=file_format,
+                                 relative_path=path.name,
+                                 sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                                 status="success", error=None)
                     break
                 except Exception as exc:  # independent failures belong in the manifest
                     error = exc
@@ -213,7 +217,8 @@ class AKShareETFDownloader:
                         time.sleep(min(0.1 * (2 ** attempt), 1.0))
             else:
                 entry.update(status="error", error=f"{type(error).__name__}: {error}",
-                             row_count=0, actual_first=None, actual_last=None, file_path=None)
+                             row_count=0, actual_start=None, actual_end=None,
+                             file_format=file_format, relative_path=None, sha256=None)
             entries.append(entry)
         manifest = {"schema_version": SCHEMA_VERSION, "entries": entries}
         (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

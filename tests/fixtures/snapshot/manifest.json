@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "entries": [
+    {
+      "symbol": "AAA",
+      "provider": "synthetic",
+      "endpoint": "fixture-v1",
+      "adjustment": "unadjusted",
+      "requested_start": "2024-01-02",
+      "requested_end": "2024-01-05",
+      "actual_start": "2024-01-02",
+      "actual_end": "2024-01-05",
+      "row_count": 4,
+      "file_format": "csv",
+      "relative_path": "AAA.csv",
+      "sha256": "9f2adead9764a4bcd0b7aed06d57fa51238e446014e8a32e751fa9dec5f64474",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "BBB",
+      "provider": "synthetic",
+      "endpoint": "fixture-v1",
+      "adjustment": "unadjusted",
+      "requested_start": "2024-01-02",
+      "requested_end": "2024-01-05",
+      "actual_start": "2024-01-02",
+      "actual_end": "2024-01-05",
+      "row_count": 4,
+      "file_format": "csv",
+      "relative_path": "BBB.csv",
+      "sha256": "be80e3249741ee949e602a36f450ed1dd2181d7faeccbbe8d81da5ff944432cb",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    }
+  ]
+}

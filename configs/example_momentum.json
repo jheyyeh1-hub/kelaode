@@ -1,19 +1,47 @@
 {
   "benchmark": "510300",
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbols": [
+      "510300"
+    ]
+  },
   "constraint_parameters": {},
-  "constructor_parameters": {"k": 3},
+  "constructor_parameters": {
+    "k": 3
+  },
   "data_alignment_mode": "intersection",
+  "data_manifest": "PATH/TO/manifest.json",
+  "data_root": "PATH/TO/snapshot",
   "end_date": "2025-12-31",
-  "execution_parameters": {"execution_delay": 1},
+  "execution_parameters": {
+    "execution_delay": 1
+  },
   "experiment_name": "example-momentum",
-  "fee_parameters": {"commission_rate": 0.00025, "slippage_rate": 0.0005},
+  "fee_parameters": {
+    "commission_rate": 0.00025,
+    "slippage_rate": 0.0005
+  },
   "initial_cash": 100000,
   "notes": "Documentation-only configuration; provide market data through the existing engine.",
   "output_directory": "results",
   "portfolio_constructor": "EqualWeightTopK",
   "random_seed": 42,
+  "schema_version": "2.0",
+  "slippage_parameters": {},
+  "split_definitions": {
+    "train_end": "2023-12-31",
+    "type": "fixed",
+    "validation_end": "2024-12-31"
+  },
   "start_date": "2020-01-01",
   "strategy_class": "MomentumRankingAdapter",
-  "strategy_parameters": {"lookback": 20},
-  "universe": ["510300", "510500"]
+  "strategy_parameters": {
+    "lookback": 20
+  },
+  "universe": [
+    "510300",
+    "510500"
+  ]
 }

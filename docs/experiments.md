@@ -1,5 +1,15 @@
 # Reproducible experiments
 
+The canonical workflow and artifact lineage are defined in [ADR 0001](adr/0001-canonical-research-workflow.md). Configuration schema 2.0 is strict and authoritative; the runner validates the immutable data manifest before strategy construction.
+
+Run the offline deterministic example from the repository root:
+
+```bash
+python -m kelaode.experiment_cli run --config configs/synthetic_example.json
+```
+
+Real input files should be retained externally under a content-addressed, read-only snapshot location. Commit or archive the manifest with experiment artifacts, mount the unchanged files at `data_root`, and verify their SHA-256 values before every run. Never regenerate a file beneath an existing manifest.
+
 `ExperimentConfig` is the immutable experiment specification. Its ID is a
 canonical JSON hash, so mapping and JSON field order cannot alter identity.
 Metadata ties results to the Git revision, runtime, dependency versions and a

@@ -36,6 +36,8 @@ def config(tmp_path):
         7,
         str(tmp_path),
         "",
+        data_manifest="manifest.json",
+        data_root="data",
     )
 
 
