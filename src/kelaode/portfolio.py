@@ -125,6 +125,33 @@ class MarketView:
         return any(bar.trade_date == self.current_date and isfinite(bar.open) and bar.open > 0
                    for bar in self._data[symbol])
 
+    def returns(self, symbol: str, lookback: int) -> tuple[float, ...]:
+        prices = self.history(symbol, "close", lookback + 1)
+        return tuple(prices[i] / prices[i - 1] - 1 for i in range(1, len(prices))
+                     if prices[i - 1] != 0)
+
+    def rolling_window(self, symbol: str, fields: Sequence[str], lookback: int
+                       ) -> Mapping[str, tuple[float, ...]]:
+        return MappingProxyType({field: self.history(symbol, field, lookback) for field in fields})
+
+    def cross_section(self, field: str) -> Mapping[str, float]:
+        return MappingProxyType({s: float(getattr(bar, field)) for s in self.available_symbols
+                                 if (bar := self.latest(s)) is not None})
+
+    @property
+    def missing_mask(self) -> Mapping[str, bool]:
+        return MappingProxyType({s: self.latest(s) is None or
+                                 self.latest(s).trade_date != self.current_date
+                                 for s in self.available_symbols})
+
+    def listing_age(self, symbol: str) -> int:
+        self._check_symbol(symbol)
+        return sum(bar.trade_date <= self.current_date for bar in self._data[symbol])
+
+    @property
+    def common_history_length(self) -> int:
+        return min((self.listing_age(s) for s in self.available_symbols), default=0)
+
     def _check_symbol(self, symbol: str) -> None:
         if symbol not in self._data:
             raise ValueError(f"unknown symbol: {symbol}")
