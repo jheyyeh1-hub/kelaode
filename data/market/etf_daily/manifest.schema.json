@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kelaode ETF daily download manifest",
+  "type": "object",
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "data_source", "adjust", "requested_start", "requested_end", "actual_first", "actual_last", "row_count", "downloaded_at", "schema_version", "file_path", "status", "error"],
+        "properties": {
+          "symbol": {"type": "string", "pattern": "^[0-9]{6}$"},
+          "data_source": {"type": "string"},
+          "adjust": {"enum": ["", "qfq", "hfq"]},
+          "requested_start": {"type": "string", "format": "date"},
+          "requested_end": {"type": "string", "format": "date"},
+          "actual_first": {"type": ["string", "null"], "format": "date"},
+          "actual_last": {"type": ["string", "null"], "format": "date"},
+          "row_count": {"type": "integer", "minimum": 0},
+          "downloaded_at": {"type": "string", "format": "date-time"},
+          "schema_version": {"const": "1.0"},
+          "file_path": {"type": ["string", "null"]},
+          "status": {"enum": ["success", "error"]},
+          "error": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

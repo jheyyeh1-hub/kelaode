@@ -57,4 +57,34 @@ print(result.total_return, result.max_drawdown, result.trades)
 AKShare 是可选依赖：下载真实行情前运行 `pip install -e '.[data]'`；只运行离线回测和测试
 无需安装 AKShare。策略在交易日收盘生成目标仓位，次日开盘成交，从而避免未来函数。
 
+## 多标的 ETF 日频数据层
+
+`DEFAULT_ETF_UNIVERSE` 提供可配置的默认标的池；`MarketDataset` 以稳定的 `DailyBar`
+序列保存多个标的，不要求回测代码依赖 pandas。它提供 `history(symbol)`、`on_date(date)`、
+`has_bar(symbol, date)`、`all_dates`、`common_dates` 和 `aligned(mode)`。`union` 对齐保留
+日期并集并以 `None` 明确表示无行情，`intersection` 仅保留所有标的均有行情的日期；两种
+模式都不会 forward-fill。
+
+安装数据依赖后批量下载（每个标的独立重试，失败不会生成合成数据）：
+
+```bash
+pip install -e '.[data]'
+python -m kelaode.data_cli download \
+  --symbols 510300,510500,159915,512100 \
+  --start 2015-01-01 --end 2026-07-19 \
+  --output data/market/etf_daily --adjust qfq
+```
+
+默认写入 Parquet 和 `manifest.json`。需要轻量 CSV 时添加 `--format csv`。校验目录中的
+全部数据并输出缺失比例、共同时间范围和价格跳变 warning：
+
+```bash
+python -m kelaode.data_cli validate --input data/market/etf_daily
+```
+
+manifest 记录数据源、复权方式、请求/实际日期、行数、UTC 下载时间、schema 版本、文件路径
+及成功/错误状态；格式由 [`manifest.schema.json`](data/market/etf_daily/manifest.schema.json) 定义。
+仓库仅提交 [`manifest.example.json`](data/market/etf_daily/manifest.example.json)，
+`.gitignore` 会排除真实历史行情。
+
 > 提醒：本项目是工程研究原型，不构成投资建议。任何实盘接入前都必须完成合规确认、券商接口授权、仿真验证和小额灰度。
