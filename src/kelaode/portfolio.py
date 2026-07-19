@@ -103,6 +103,18 @@ class MarketView:
     def available_symbols(self) -> tuple[str, ...]:
         return tuple(sorted(self._data))
 
+    @property
+    def observed_dates(self) -> tuple[date, ...]:
+        """Union calendar through the point-in-time boundary."""
+        return tuple(sorted({bar.trade_date for bars in self._data.values() for bar in bars
+                             if bar.trade_date <= self.current_date}))
+
+    def observation_dates(self, symbol: str) -> tuple[date, ...]:
+        """Dates on which ``symbol`` has a completed observation through today."""
+        self._check_symbol(symbol)
+        return tuple(bar.trade_date for bar in self._data[symbol]
+                     if bar.trade_date <= self.current_date)
+
     def is_available(self, symbol: str) -> bool:
         """Return whether ``symbol`` has an observation on the current date."""
         self._check_symbol(symbol)
@@ -220,6 +232,7 @@ class DailyAudit:
     cash: float
     equity: float
     constraint_reason_codes: tuple[ReasonCode, ...] = ()
+    strategy_diagnostics: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -323,6 +336,8 @@ class PortfolioBacktester:
                 MappingProxyType(weights), today)
             # The strategy receives only this point-in-time view, never MarketDataset.
             raw_target = strategy.target_weights(index, today, MarketView(normalized, today), snapshot)
+            strategy_diagnostics = (dict(strategy.diagnostics())
+                                    if callable(getattr(strategy, "diagnostics", None)) else None)
             hold = isinstance(raw_target, _HoldTargets)
             target = dict(raw_target)
             self._validate_target(target, normalized)
@@ -335,7 +350,8 @@ class PortfolioBacktester:
             weight_curve[today] = MappingProxyType(weights)
             audit_target = MappingProxyType(dict(target if not hold else executing_target))
             audit = DailyAudit(today, audit_target, tuple(generated), tuple(validated),
-                tuple(rejected), tuple(fills), position_curve[today], cash, equity, tuple(codes))
+                tuple(rejected), tuple(fills), position_curve[today], cash, equity, tuple(codes),
+                strategy_diagnostics)
             audits.append(audit)
             all_validated.extend(validated); all_fills.extend(fills); all_codes.extend(codes)
 

@@ -1,0 +1,10 @@
+{
+  "notes": "Synthetic infrastructure audit metadata only; no economic thresholds or conclusion.",
+  "official_listing_dates": {
+    "DOWN": "2024-03-01",
+    "LATE": "2024-03-13",
+    "MIXED": "2024-03-01",
+    "UP_LOW": "2024-03-01"
+  },
+  "schema_version": "1.0"
+}

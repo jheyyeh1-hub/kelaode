@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "entries": [
+    {
+      "symbol": "UP_LOW",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/tsmom_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-03-01",
+      "requested_end": "2024-03-28",
+      "actual_start": "2024-03-01",
+      "actual_end": "2024-03-28",
+      "row_count": 20,
+      "file_format": "csv",
+      "relative_path": "UP_LOW.csv",
+      "sha256": "d37ceb1007bd5c65b97440230267f4256916a809eb73aeb36fabec7012d2a2e6",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "MIXED",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/tsmom_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-03-01",
+      "requested_end": "2024-03-28",
+      "actual_start": "2024-03-01",
+      "actual_end": "2024-03-28",
+      "row_count": 19,
+      "file_format": "csv",
+      "relative_path": "MIXED.csv",
+      "sha256": "0c9521cf945dac3c2a78028f5e3e24c428877202db9eb3d713a208ac1a43bd9d",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "DOWN",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/tsmom_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-03-01",
+      "requested_end": "2024-03-28",
+      "actual_start": "2024-03-01",
+      "actual_end": "2024-03-28",
+      "row_count": 20,
+      "file_format": "csv",
+      "relative_path": "DOWN.csv",
+      "sha256": "872aa274794f1b756c5ecde381a2c27399bc52559c9d9849375b5ee6cf885b36",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "LATE",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/tsmom_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-03-01",
+      "requested_end": "2024-03-28",
+      "actual_start": "2024-03-13",
+      "actual_end": "2024-03-28",
+      "row_count": 12,
+      "file_format": "csv",
+      "relative_path": "LATE.csv",
+      "sha256": "e8f90f0f3af4849c31849e1034d98209bcb2eeaad10221b91c897e00015e5550",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    }
+  ]
+}

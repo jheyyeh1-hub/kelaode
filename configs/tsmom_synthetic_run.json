@@ -1,0 +1,63 @@
+{
+  "allow_mixed_adjustments": false,
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbols": [
+      "UP_LOW",
+      "MIXED",
+      "DOWN"
+    ],
+    "type": "equal_weight_buy_and_hold"
+  },
+  "constraint_parameters": {
+    "cash_buffer": 0.01,
+    "max_gross_exposure": 1.0,
+    "max_single_weight": 1.0
+  },
+  "constructor_parameters": {},
+  "data_alignment_mode": "union",
+  "data_manifest": "tests/fixtures/tsmom_snapshot/manifest.json",
+  "data_root": "tests/fixtures/tsmom_snapshot",
+  "diagnostic_only": false,
+  "end_date": "2024-03-28",
+  "execution_parameters": {
+    "execution_timing": "next_open",
+    "lot_size": 100
+  },
+  "experiment_mode": "run",
+  "experiment_name": "tsmom-synthetic-infrastructure",
+  "fee_parameters": {
+    "commission_rate": 0.001,
+    "minimum_commission": 2.0
+  },
+  "initial_cash": 100000,
+  "notes": "Synthetic infrastructure validation only; no economic performance claim",
+  "output_directory": "results/tsmom-synthetic",
+  "portfolio_constructor": "strategy-native",
+  "random_seed": 42,
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.001
+  },
+  "split_definitions": {
+    "reason": "fixed-rule no-fit synthetic run",
+    "type": "none"
+  },
+  "start_date": "2024-03-01",
+  "strategy_class": "TimeSeriesTrendStrategy",
+  "strategy_parameters": {
+    "maximum_active_assets": 1,
+    "rebalance_frequency": 2,
+    "signal_buffer": 0.0,
+    "trend_lookback": 3,
+    "volatility_lookback": 3
+  },
+  "universe": [
+    "UP_LOW",
+    "MIXED",
+    "DOWN",
+    "LATE"
+  ],
+  "warmup_policy": "none"
+}
