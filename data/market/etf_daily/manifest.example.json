@@ -3,18 +3,19 @@
   "entries": [
     {
       "symbol": "510300",
-      "data_source": "AKShare/Eastmoney",
-      "adjust": "qfq",
+      "provider": "AKShare/Eastmoney",
+      "endpoint": "fund_etf_hist_em",
+      "adjustment": "qfq",
       "requested_start": "2024-01-01",
       "requested_end": "2024-01-05",
-      "actual_first": "2024-01-02",
-      "actual_last": "2024-01-05",
+      "actual_start": "2024-01-02",
+      "actual_end": "2024-01-05",
       "row_count": 4,
+      "file_format": "csv",
+      "relative_path": "510300.csv",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "downloaded_at": "2024-01-06T00:00:00+00:00",
-      "schema_version": "1.0",
-      "file_path": "510300.parquet",
-      "status": "success",
-      "error": null
+      "schema_version": "1.0"
     }
   ]
 }

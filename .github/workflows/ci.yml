@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Test
+        run: pytest -q
+      - name: Compile
+        run: python -m compileall -q src tests
+      - name: Check dependencies
+        run: python -m pip check
+      - name: Import smoke test
+        run: python -c "import kelaode; from kelaode.runner import run_experiment; from kelaode.snapshot import SnapshotManifest"

@@ -1,29 +1,32 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Kelaode ETF daily download manifest",
+  "title": "Kelaode immutable daily snapshot manifest",
   "type": "object",
   "required": ["schema_version", "entries"],
   "properties": {
     "schema_version": {"const": "1.0"},
     "entries": {
-      "type": "array",
+      "type": "array", "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["symbol", "data_source", "adjust", "requested_start", "requested_end", "actual_first", "actual_last", "row_count", "downloaded_at", "schema_version", "file_path", "status", "error"],
+        "required": ["symbol", "provider", "endpoint", "adjustment", "requested_start", "requested_end", "actual_start", "actual_end", "row_count", "file_format", "relative_path", "sha256", "downloaded_at", "schema_version"],
         "properties": {
-          "symbol": {"type": "string", "pattern": "^[0-9]{6}$"},
-          "data_source": {"type": "string"},
-          "adjust": {"enum": ["", "qfq", "hfq"]},
+          "symbol": {"type": "string", "minLength": 1},
+          "provider": {"type": "string", "minLength": 1},
+          "endpoint": {"type": "string", "minLength": 1},
+          "adjustment": {"type": "string", "minLength": 1},
           "requested_start": {"type": "string", "format": "date"},
           "requested_end": {"type": "string", "format": "date"},
-          "actual_first": {"type": ["string", "null"], "format": "date"},
-          "actual_last": {"type": ["string", "null"], "format": "date"},
-          "row_count": {"type": "integer", "minimum": 0},
+          "actual_start": {"type": "string", "format": "date"},
+          "actual_end": {"type": "string", "format": "date"},
+          "row_count": {"type": "integer", "minimum": 1},
+          "file_format": {"enum": ["csv", "parquet"]},
+          "relative_path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
           "downloaded_at": {"type": "string", "format": "date-time"},
           "schema_version": {"const": "1.0"},
-          "file_path": {"type": ["string", "null"]},
-          "status": {"enum": ["success", "error"]},
-          "error": {"type": ["string", "null"]}
+          "status": {"const": "success"},
+          "error": {"type": "null"}
         },
         "additionalProperties": false
       }

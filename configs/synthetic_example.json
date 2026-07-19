@@ -1,0 +1,45 @@
+{
+  "allow_mixed_adjustments": false,
+  "benchmark_definitions": {
+    "type": "none"
+  },
+  "constraint_parameters": {
+    "max_gross_exposure": 1.0,
+    "max_single_weight": 1.0
+  },
+  "constructor_parameters": {},
+  "data_alignment_mode": "intersection",
+  "data_manifest": "tests/fixtures/snapshot/manifest.json",
+  "data_root": "tests/fixtures/snapshot",
+  "diagnostic_only": false,
+  "end_date": "2024-01-05",
+  "execution_parameters": {
+    "execution_timing": "next_open",
+    "lot_size": 100
+  },
+  "experiment_name": "synthetic-infrastructure-example",
+  "fee_parameters": {
+    "commission_rate": 0.00025,
+    "minimum_commission": 5
+  },
+  "initial_cash": 100000,
+  "notes": "Deterministic synthetic example only",
+  "output_directory": "results",
+  "portfolio_constructor": "strategy-native",
+  "random_seed": 42,
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.0005
+  },
+  "split_definitions": {
+    "reason": "strategy has no fitting stage",
+    "type": "none"
+  },
+  "start_date": "2024-01-02",
+  "strategy_class": "EqualWeightBuyAndHold",
+  "strategy_parameters": {},
+  "universe": [
+    "AAA",
+    "BBB"
+  ]
+}

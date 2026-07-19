@@ -129,5 +129,7 @@ For importing signal formulas safely, see the [adaptation guide](docs/open_sourc
 The reproducible experiment layer provides canonical JSON configurations,
 Git/data provenance, trading-day fixed and walk-forward splits, deterministic
 grid search, robust performance and benchmark statistics, cost scenarios, and
-a complete report directory. See [the experiment guide](docs/experiments.md)
+a hash-verified result bundle. The CLI currently executes no-fit runs; retained
+grid-search and walk-forward command names fail safely pending validated runners.
+See [the experiment guide](docs/experiments.md)
 and [`configs/example_momentum.json`](configs/example_momentum.json).

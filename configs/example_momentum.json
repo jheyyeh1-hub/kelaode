@@ -1,19 +1,44 @@
 {
-  "benchmark": "510300",
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbol": "510300",
+    "type": "single_symbol_buy_and_hold"
+  },
   "constraint_parameters": {},
-  "constructor_parameters": {"k": 3},
+  "constructor_parameters": {},
   "data_alignment_mode": "intersection",
+  "data_manifest": "PATH/TO/manifest.json",
+  "data_root": "PATH/TO/snapshot",
   "end_date": "2025-12-31",
-  "execution_parameters": {"execution_delay": 1},
+  "execution_parameters": {
+    "execution_timing": "next_open"
+  },
   "experiment_name": "example-momentum",
-  "fee_parameters": {"commission_rate": 0.00025, "slippage_rate": 0.0005},
+  "fee_parameters": {
+    "commission_rate": 0.00025
+  },
   "initial_cash": 100000,
   "notes": "Documentation-only configuration; provide market data through the existing engine.",
   "output_directory": "results",
-  "portfolio_constructor": "EqualWeightTopK",
+  "portfolio_constructor": "strategy-native",
   "random_seed": 42,
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.0005
+  },
+  "split_definitions": {
+    "reason": "maintained configuration demonstrates a non-fittable strategy",
+    "type": "none"
+  },
   "start_date": "2020-01-01",
-  "strategy_class": "MomentumRankingAdapter",
-  "strategy_parameters": {"lookback": 20},
-  "universe": ["510300", "510500"]
+  "strategy_class": "CrossSectionalMomentumStrategy",
+  "strategy_parameters": {
+    "lookback": 20,
+    "top_k": 1
+  },
+  "universe": [
+    "510300",
+    "510500"
+  ]
 }

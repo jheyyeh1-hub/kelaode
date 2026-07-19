@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from math import sqrt
+from datetime import date
 from statistics import mean, stdev
 from typing import Mapping, Sequence
 
@@ -91,6 +92,59 @@ def performance_metrics(
         if trades
         else 0.0,
         "average_trade_return": mean(trade_returns) if trade_returns else 0.0,
+    }
+
+
+def execution_statistics(trades: Sequence[Mapping], initial_cash: float) -> dict:
+    """Reconcile execution-level and realized long-only statistics.
+
+    Realized returns are computed from an average-cost ledger including buy and
+    sell commissions. Metrics that require a realized exit are explicitly null
+    when no exit exists rather than silently reported as zero.
+    """
+    quantity: dict[str, int] = {}
+    cost: dict[str, float] = {}
+    realized: list[float] = []
+    entry_ordinal: dict[str, float] = {}
+    holding_periods: list[float] = []
+    commissions = notional = 0.0
+    for trade in trades:
+        symbol, side = str(trade["symbol"]), str(trade["side"])
+        trade_date = trade["date"]
+        trade_date = trade_date if isinstance(trade_date, date) else date.fromisoformat(str(trade_date))
+        qty, price, fee = int(trade["quantity"]), float(trade["price"]), float(trade["commission"])
+        commissions += fee
+        notional += qty * price
+        held, basis = quantity.get(symbol, 0), cost.get(symbol, 0.0)
+        if side == "buy":
+            quantity[symbol] = held + qty
+            cost[symbol] = basis + qty * price + fee
+            entry_ordinal[symbol] = ((entry_ordinal.get(symbol, trade_date.toordinal()) * held
+                                      + trade_date.toordinal() * qty) / (held + qty))
+        elif side == "sell":
+            if qty > held:
+                raise ValueError("trade history oversells the long-only accounting ledger")
+            allocated = basis * qty / held
+            proceeds = qty * price - fee
+            realized.append((proceeds - allocated) / allocated if allocated else 0.0)
+            holding_periods.append(trade_date.toordinal() - entry_ordinal[symbol])
+            quantity[symbol] = held - qty
+            cost[symbol] = basis - allocated
+        else:
+            raise ValueError(f"unknown trade side: {side}")
+    wins, losses = [value for value in realized if value > 0], [value for value in realized if value < 0]
+    return {
+        "execution_count": len(trades),
+        "trade_count": len(trades),
+        "realized_trade_count": len(realized),
+        "win_rate": len(wins) / len(realized) if realized else None,
+        "profit_factor": sum(wins) / abs(sum(losses)) if losses else None,
+        "average_trade_return": mean(realized) if realized else None,
+        "average_holding_period": mean(holding_periods) if holding_periods else None,
+        "total_commissions": commissions,
+        "traded_notional": notional,
+        "turnover": notional / initial_cash,
+        "final_positions": quantity,
     }
 
 
