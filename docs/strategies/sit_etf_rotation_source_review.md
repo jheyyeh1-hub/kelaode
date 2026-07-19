@@ -1,5 +1,20 @@
 # SIT ETF rotation: source review and migration record
 
+## Schema 2.0 integration status
+
+`SITMomentumRotationStrategy` is registered with the shared schema 2.0 strategy
+factory and runs through the same `run_experiment` path and immutable result-bundle
+contract as the built-in strategies. No SIT-specific runner, validator, audit flow,
+or data fallback exists. `configs/sit_synthetic.json` is the maintained example;
+it uses only deterministic repository fixtures and makes **no investment-performance
+claim**.
+
+Real-data validation has not been rerun under schema 2.0. Results and flows from
+old PR #9 and PR #10 are obsolete and must not be used. Any future real-data
+validation must use the shared immutable snapshot validation, validated split
+infrastructure, and complete shared result artifacts before performance is
+reported.
+
 ## Pinned source and license
 
 - **Repository:** <https://github.com/SystematicInvestor/SIT>
@@ -54,9 +69,9 @@ minimum commissions, and different corporate-action handling. Listing filters
 must use only age observable on each signal date; pre-listing values must never be
 backfilled.
 
-## Reproducible validation plan and current status
+## Historical validation notes (obsolete; not runnable)
 
-The checked-in experiment template uses `510300, 510500, 159915, 512100, 512880,
+The legacy, non-runnable experiment draft used `510300, 510500, 159915, 512100, 512880,
 512480, 518880, 513100, 511010`. After downloading data, record each symbol's first
 and last valid date and derive train/validation/test boundaries from their actual
 union coverage. Use listing age 127 or greater. Compare 510300 buy-and-hold,
@@ -71,7 +86,7 @@ only on validation, lock the choice for test, and report every rolling fold's
 choice plus dispersion. Repeat test execution at base costs and at 2x/4x
 commission and slippage.
 
-No real market history is committed. An AKShare/Eastmoney download was attempted
+No real market history is committed. Before schema 2.0, an AKShare/Eastmoney download was attempted
 on 2026-07-19 and succeeded for all nine symbols: their observed starts were
 2012-05-28, 2013-03-15, 2011-12-09, 2016-11-04, 2016-08-08, 2019-06-12,
 2013-07-29, 2013-05-15, and 2013-03-25 respectively (in universe order), and all
@@ -79,5 +94,7 @@ ended 2026-07-17. Thus the common unfiltered coverage starts 2019-06-12. The
 downloaded files remained outside the repository. The full grid run exceeded the
 available process resources before producing a result, so no full historical run
 was completed in this change. Therefore there are currently **no** train, validation, out-of-sample,
-walk-forward, drawdown, turnover, or cost-sensitivity figures to report. The unit
-fixture is synthetic and tests mechanics only; it is not investment performance.
+walk-forward, drawdown, turnover, or cost-sensitivity figures to report. Those
+notes do not constitute validation and must not be revived as a runnable flow.
+The schema 2.0 fixture is synthetic and tests mechanics only; it is not investment
+performance.

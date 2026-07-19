@@ -15,15 +15,12 @@ from typing import Iterable, Mapping
 from .experiment import ExperimentConfig, experiment_identity, experiment_metadata
 from .experiment_metrics import benchmark_metrics, execution_statistics, performance_metrics
 from .market_data import DailyBar, read_daily_bars
-from .portfolio import (CrossSectionalMomentumStrategy, EqualWeightBuyAndHold,
-                        PortfolioBacktestConfig, PortfolioBacktester)
+from .portfolio import EqualWeightBuyAndHold, PortfolioBacktestConfig, PortfolioBacktester
+from .strategy_registry import create_strategy
 from .execution import ExcessVolumePolicy
 from .snapshot import SnapshotManifest, canonical_json, sha256_file
 
 BUNDLE_SCHEMA_VERSION = "1.0"
-STRATEGIES = {"EqualWeightBuyAndHold": EqualWeightBuyAndHold,
-              "CrossSectionalMomentumStrategy": CrossSectionalMomentumStrategy}
-
 ARTIFACT_COLUMNS = {
     "equity_curve.csv": ("date", "equity"), "cash.csv": ("date", "cash"),
     "positions.csv": ("date", "symbol", "quantity"),
@@ -99,13 +96,7 @@ def _engine_config(config: ExperimentConfig) -> PortfolioBacktestConfig:
     return PortfolioBacktestConfig(**merged)
 
 def _strategy(config: ExperimentConfig):
-    try:
-        strategy_cls = STRATEGIES[config.strategy_class]
-    except KeyError as exc:
-        raise ValueError(f"unregistered strategy_class: {config.strategy_class}") from exc
-    parameters = dict(config.strategy_parameters)
-    parameters["symbols"] = config.universe
-    return strategy_cls(**parameters)
+    return create_strategy(config.strategy_class, config.universe, config.strategy_parameters)
 
 def run_experiment(config: ExperimentConfig) -> Path:
     """Validate, execute, and atomically publish one daily no-fit experiment."""
