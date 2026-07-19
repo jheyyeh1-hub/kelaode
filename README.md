@@ -116,3 +116,9 @@ print(result.total_return, result.turnover, result.positions_by_date)
 `CrossSectionalMomentumStrategy`（只按截至当日的 N 日收益选择 top-k）作为基线策略。
 
 > 提醒：本项目是工程研究原型，不构成投资建议。任何实盘接入前都必须完成合规确认、券商接口授权、仿真验证和小额灰度。
+
+## Strategy SDK quick start
+
+See [the strategy SDK](docs/strategy_sdk.md) for target-weight, ranking, and signal strategies.
+`CrossSectionalMomentumRotation(lookback=60, top_k=3)` provides a point-in-time momentum example.
+For importing signal formulas safely, see the [adaptation guide](docs/open_source_strategy_adaptation.md).
