@@ -9,7 +9,10 @@ from .core import (
     TradingConstraints,
 )
 from .backtest import BacktestConfig, BacktestResult, ETFBacktester, MovingAverageCrossStrategy
-from .market_data import AKShareETFDownloader, DailyBar, read_daily_bars
+from .market_data import (
+    AKShareETFDownloader, DEFAULT_ETF_UNIVERSE, DailyBar, DatasetQuality,
+    MarketDataset, read_daily_bars, validate_bars, write_daily_bars,
+)
 
 __all__ = [
     "ConstraintEngine",
@@ -22,7 +25,12 @@ __all__ = [
     "BacktestConfig",
     "BacktestResult",
     "DailyBar",
+    "DatasetQuality",
+    "DEFAULT_ETF_UNIVERSE",
     "ETFBacktester",
     "MovingAverageCrossStrategy",
+    "MarketDataset",
     "read_daily_bars",
+    "validate_bars",
+    "write_daily_bars",
 ]
