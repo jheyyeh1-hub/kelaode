@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "official_listing_dates": {
+    "159915": "2011-12-09",
+    "510300": "2012-05-28",
+    "510500": "2013-03-15",
+    "511010": "2013-03-25",
+    "512100": "2017-08-25",
+    "512480": "2019-06-12",
+    "512880": "2016-08-08",
+    "513100": "2013-05-15",
+    "518880": "2013-07-29"
+  },
+  "thresholds": {
+    "pass_frozen_test_excess_return_gt": 0.0,
+    "pass_stitched_oos_return_gt": 0.0,
+    "pass_stitched_max_drawdown_ge": -0.35,
+    "pass_moderate_equity_ratio_ge": 0.95,
+    "fail_frozen_test_return_le": -0.20,
+    "fail_stitched_oos_return_le": -0.20,
+    "fail_stitched_max_drawdown_lt": -0.50,
+    "fail_moderate_equity_ratio_lt": 0.90,
+    "conditional_contribution_share_gt": 0.60,
+    "conditional_severe_equity_ratio_lt": 0.90
+  }
+}

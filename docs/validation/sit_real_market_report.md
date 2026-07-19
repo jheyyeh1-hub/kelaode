@@ -2,12 +2,18 @@
 
 ## 1. Executive conclusion
 
-**Judgment: FAIL — infrastructure/data acquisition failure; strategy performance was not
-evaluated.** The frozen primary AKShare/Eastmoney `fund_etf_hist_em` endpoint did not return a
+* `execution_status = FAILED_DATA_FREEZE`
+* `strategy_judgment = NOT_EVALUATED`
+
+The protocol mechanically classifies this attempted execution as an infrastructure **FAIL**, but
+that is not an economic FAIL for SIT. The frozen primary AKShare/Eastmoney `fund_etf_hist_em`
+endpoint did not return a
 valid response for 518880 after the command's two same-provider retries. In accordance with the
 precommitted protocol, the incomplete staging snapshot was rejected and neither fixed-selection
 nor walk-forward validation was started. There is therefore no basis to call the strategy
-profitable, successful, validated, or deployable.
+profitable, successful, validated, or deployable. No valid snapshot exists, no candidate was
+selected, no frozen test ran, no walk-forward OOS result exists, and the strategy has not been
+economically evaluated.
 
 ## 2. Frozen judgment
 
@@ -17,10 +23,14 @@ execution failure, **not** evidence for or against the economic strategy.
 
 ## 3. Frozen protocol
 
-The controlling protocol is [`sit_real_market_protocol.md`](sit_real_market_protocol.md), committed
-as `aed3138` before any final metrics were inspected. It was not amended after acquisition output.
-The universe, qfq convention, dates, 16 candidates, validation-Sharpe objective, -35% eligibility
-constraint, tie breaks, costs, and decision thresholds remain exactly as frozen.
+The controlling content is [`sit_real_market_protocol.md`](sit_real_market_protocol.md). It was
+prepared before the acquisition attempt in the execution environment and was not amended after
+acquisition output. However, the intermediate local protocol commit was not preserved in the
+remote PR history, so this failed attempt does **not** have independently verifiable remote
+preregistration. The eventual merged `main` commit containing this unchanged protocol is the
+authoritative preregistration point for the next complete attempt. The universe, qfq convention,
+dates, 16 candidates, validation-Sharpe objective, -35% eligibility constraint, tie breaks, costs,
+and decision thresholds remain unchanged.
 
 ## 4. Data provenance
 
@@ -114,7 +124,7 @@ The two experiment commands must each be repeated verbatim to demonstrate exact 
 
 ## 16. Artifact locations and identities
 
-* Protocol commit: `aed3138`.
+* Remote-verifiable preregistration commit for this failed attempt: N/A; not preserved.
 * Fixed configuration fingerprint: `d8979b6508f2b44c47e7caec507ada259c9b53e15d42de0fc66bfa9d199345eb`.
 * Walk-forward configuration fingerprint:
   `a1fe25e43abafa9c6afe0c20ffe23c917c2e0e0e596917e95292799b7c1867e8`.
@@ -122,5 +132,6 @@ The two experiment commands must each be repeated verbatim to demonstrate exact 
   IDs: N/A because publication correctly stopped at the failed freeze.
 * Ignored failed staging location: `data/snapshots/sit-20260719/`.
 
-The protocol was not changed after output inspection. Obsolete PR #9/#10 artifacts and code were
-not used, copied, merged, or depended upon.
+The protocol content was not changed after output inspection. A next attempt must begin from the
+merged commit containing these unchanged values. Obsolete PR #9/#10 artifacts and code were not
+used, copied, merged, or depended upon.
