@@ -24,12 +24,27 @@ after `GridSearch.select` freezes parameters. Fittable strategies persist their
 JSON-compatible state between these two operations; ordinary strategies remain
 unchanged.
 
-The CLI intentionally exposes only the implemented no-fit `run` workflow.
+The CLI implements only the no-fit `run` workflow. The historical `grid-search`
+and `walk-forward` command names remain discoverable for compatibility, but
+exit with a schema-2.0 migration error rather than running an unsafe placeholder.
 Fixed split and walk-forward callers use the explicit selection APIs and must
 persist their returned boundaries and complete selection tables through an
 integration; the CLI never pretends that a split was executed. The runner
 atomically writes and hashes its CSV/JSON artifacts. A configured benchmark is
 rerun with identical dates, capital, costs, and next-open execution timing.
+
+`benchmark_definitions.type` must be `none`, `single_symbol_buy_and_hold`, or
+`equal_weight_buy_and_hold`; no arbitrary benchmark strategy is implied. The
+resolved definition is persisted in `resolved_benchmark.json`.
+
+Under `union` alignment, `marks.csv` contains one row per date and symbol with
+an `available` boolean. Before listing, `available` is false and `close` is
+empty—prices are never backfilled from the future. Zero holdings need no mark;
+a nonzero holding without a current or previously observed close aborts the run.
+
+Maintained schema-2.0 configurations are the JSON files directly under
+`configs/`. Historical files under `configs/legacy/` are documentation only and
+must not be passed to the experiment CLI.
 
 ## Limitations
 

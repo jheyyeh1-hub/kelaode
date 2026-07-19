@@ -2,9 +2,8 @@
   "benchmark_definitions": {
     "capital": 100000,
     "execution_timing": "next_open",
-    "symbols": [
-      "510300"
-    ]
+    "symbol": "510300",
+    "type": "single_symbol_buy_and_hold"
   },
   "constraint_parameters": {},
   "constructor_parameters": {},
@@ -13,13 +12,11 @@
   "data_root": "PATH/TO/snapshot",
   "end_date": "2025-12-31",
   "execution_parameters": {
-    "execution_delay": 1,
     "execution_timing": "next_open"
   },
   "experiment_name": "example-momentum",
   "fee_parameters": {
-    "commission_rate": 0.00025,
-    "slippage_rate": 0.0005
+    "commission_rate": 0.00025
   },
   "initial_cash": 100000,
   "notes": "Documentation-only configuration; provide market data through the existing engine.",
@@ -27,11 +24,12 @@
   "portfolio_constructor": "strategy-native",
   "random_seed": 42,
   "schema_version": "2.0",
-  "slippage_parameters": {},
+  "slippage_parameters": {
+    "slippage_rate": 0.0005
+  },
   "split_definitions": {
-    "train_end": "2023-12-31",
-    "type": "fixed",
-    "validation_end": "2024-12-31"
+    "reason": "maintained configuration demonstrates a non-fittable strategy",
+    "type": "none"
   },
   "start_date": "2020-01-01",
   "strategy_class": "CrossSectionalMomentumStrategy",

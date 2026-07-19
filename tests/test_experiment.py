@@ -24,8 +24,7 @@ def config(tmp_path):
         end_date="2022-01-01", strategy_class="S", strategy_parameters={"b": 2, "a": 1},
         portfolio_constructor="strategy-native", constructor_parameters={}, initial_cash=100,
         fee_parameters={}, slippage_parameters={}, execution_parameters={"execution_timing": "next_open"},
-        constraint_parameters={}, benchmark_definitions={
-            "symbols": [], "capital": 100, "execution_timing": "next_open"},
+        constraint_parameters={}, benchmark_definitions={"type": "none"},
         data_alignment_mode="intersection", random_seed=7, output_directory=str(tmp_path),
         split_definitions={"type": "none", "reason": "unit test"},
         data_manifest="manifest.json", data_root="data", notes="",

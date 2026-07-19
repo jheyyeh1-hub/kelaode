@@ -24,7 +24,7 @@ Large market files stay outside Git, for example in read-only object storage und
 
 ## Migration
 
-Version 1 configurations must be migrated explicitly: add `schema_version`, `data_manifest`, `data_root`, `slippage_parameters`, `benchmark_definitions`, and `split_definitions`. CLI commands now run the validated configuration instead of merely creating empty files. Unknown keys and unsupported engine parameters are errors. Existing unversioned result folders are not cache-compatible and should remain archived rather than renamed.
+Version 1 configurations must be migrated explicitly: add `schema_version`, `data_manifest`, `data_root`, `slippage_parameters`, typed `benchmark_definitions`, and `split_definitions`. `run` executes validated no-fit configurations; retained `grid-search` and `walk-forward` command names fail with migration guidance until complete schema-2.0 runners exist. Unknown keys and unsupported engine parameters are errors. Existing unversioned result folders are not cache-compatible and should remain archived rather than renamed.
 
 ## Boundaries and limitations
 

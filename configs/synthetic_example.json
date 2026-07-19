@@ -1,9 +1,7 @@
 {
   "allow_mixed_adjustments": false,
   "benchmark_definitions": {
-    "capital": 100000,
-    "execution_timing": "next_open",
-    "symbols": []
+    "type": "none"
   },
   "constraint_parameters": {
     "max_gross_exposure": 1.0,

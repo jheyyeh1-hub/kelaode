@@ -15,7 +15,8 @@ def config(tmp_path, **changes):
     raw = json.loads(Path("configs/synthetic_example.json").read_text())
     raw.update(output_directory=str(tmp_path), data_root=str(ROOT), data_manifest=str(ROOT/"manifest.json"))
     raw.update(changes)
-    if "initial_cash" in changes and "benchmark_definitions" not in changes:
+    if ("initial_cash" in changes and "benchmark_definitions" not in changes and
+            raw["benchmark_definitions"]["type"] != "none"):
         raw["benchmark_definitions"]["capital"] = changes["initial_cash"]
     return ExperimentConfig.from_json(json.dumps(raw))
 
@@ -32,7 +33,7 @@ def test_identity_changes_for_every_result_affecting_input(tmp_path):
     provenance=experiment_metadata(base, base.data_manifest, git_sha="a"*40, dependency_versions={"x":"1"})
     first=experiment_identity(base,manifest,provenance)["experiment_id"]
     variants=[replace(base,universe=("BBB","AAA")),
-              replace(base,initial_cash=100001, benchmark_definitions={**base.benchmark_definitions,"capital":100001}),
+              replace(base,initial_cash=100001),
               replace(base,fee_parameters={"commission_rate":.01}),
               replace(base,execution_parameters={"execution_timing":"next_open","lot_size":1})]
     assert all(experiment_identity(x,manifest,provenance)["experiment_id"] != first for x in variants)
@@ -91,7 +92,7 @@ def test_ignored_execution_modes_fail_loudly(tmp_path):
         run_experiment(config(tmp_path,split_definitions={"type":"fixed","train_end":"2024-01-02","validation_end":"2024-01-03"}))
 
 def test_benchmark_uses_exact_strategy_calendar_capital_costs_and_timing(tmp_path):
-    definitions={"symbols":["AAA"],"capital":100000,"execution_timing":"next_open"}
+    definitions={"type":"single_symbol_buy_and_hold","symbol":"AAA","capital":100000,"execution_timing":"next_open"}
     root=run_experiment(config(tmp_path,benchmark_definitions=definitions))
     import csv
     strategy=list(csv.DictReader((root/"equity_curve.csv").open()))
@@ -99,6 +100,20 @@ def test_benchmark_uses_exact_strategy_calendar_capital_costs_and_timing(tmp_pat
     assert [x["date"] for x in strategy] == [x["date"] for x in benchmark]
     assert float(strategy[0]["equity"]) == float(benchmark[0]["equity"]) == 100000
     assert json.loads((root/"identity.json").read_text())["canonical_inputs"]["fees"] == config(tmp_path).fee_parameters
+    assert json.loads((root/"resolved_benchmark.json").read_text()) == definitions
+
+
+def test_benchmark_type_and_alignment_contract_fail_before_execution(tmp_path):
+    with pytest.raises(ValueError, match="unsupported benchmark type"):
+        config(tmp_path, strategy_class="missing",
+               benchmark_definitions={"type":"arbitrary_strategy"})
+    for field, value, message in (("capital", 99, "identical initial capital"),
+                                  ("execution_timing", "close", "next_open")):
+        definition={"type":"single_symbol_buy_and_hold","symbol":"AAA",
+                    "capital":100000,"execution_timing":"next_open"}
+        definition[field]=value
+        with pytest.raises(ValueError, match=message):
+            config(tmp_path, benchmark_definitions=definition)
 
 def test_failed_run_does_not_publish_partial_bundle(tmp_path):
     bad=config(tmp_path,strategy_class="missing")

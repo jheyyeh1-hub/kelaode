@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Iterable, Mapping
 
 from .experiment import ExperimentConfig, experiment_identity, experiment_metadata
-from .experiment_metrics import benchmark_metrics, performance_metrics
+from .experiment_metrics import benchmark_metrics, execution_statistics, performance_metrics
 from .market_data import DailyBar, read_daily_bars
 from .portfolio import (CrossSectionalMomentumStrategy, EqualWeightBuyAndHold,
                         PortfolioBacktestConfig, PortfolioBacktester)
@@ -27,7 +27,7 @@ STRATEGIES = {"EqualWeightBuyAndHold": EqualWeightBuyAndHold,
 ARTIFACT_COLUMNS = {
     "equity_curve.csv": ("date", "equity"), "cash.csv": ("date", "cash"),
     "positions.csv": ("date", "symbol", "quantity"),
-    "marks.csv": ("date", "symbol", "close"),
+    "marks.csv": ("date", "symbol", "close", "available"),
     "weights.csv": ("date", "symbol", "target_weight"),
     "generated_orders.csv": ("date", "order_id", "symbol", "side", "quantity", "limit_price"),
     "orders.csv": ("date", "signal_date", "symbol", "side", "requested_quantity", "filled_quantity", "status", "reason"),
@@ -42,7 +42,8 @@ ARTIFACT_COLUMNS = {
 }
 JSON_ARTIFACTS = ("configuration.json", "identity.json", "data_manifest.json", "metrics.json",
                   "benchmark_metrics.json", "split_definitions.json", "selected_parameters.json",
-                  "fold_results.json", "daily_audits.json", "runtime.json", "contracts.json")
+                  "fold_results.json", "daily_audits.json", "runtime.json", "contracts.json",
+                  "resolved_benchmark.json")
 
 def _write_csv(path: Path, rows: Iterable[Mapping]) -> None:
     columns = ARTIFACT_COLUMNS[path.name]
@@ -125,7 +126,10 @@ def run_experiment(config: ExperimentConfig) -> Path:
     engine_config = _engine_config(config)
     random.seed(config.random_seed)
     result = PortfolioBacktester(engine_config).run(data, _strategy(config))
-    benchmark_symbols = tuple(config.benchmark_definitions["symbols"])
+    benchmark_type = config.benchmark_definitions["type"]
+    benchmark_symbols = (() if benchmark_type == "none" else
+        tuple(config.benchmark_definitions["symbols"]) if benchmark_type == "equal_weight_buy_and_hold" else
+        (config.benchmark_definitions["symbol"],))
     benchmark = (PortfolioBacktester(engine_config).run(
         {symbol: data[symbol] for symbol in benchmark_symbols}, EqualWeightBuyAndHold(benchmark_symbols))
         if benchmark_symbols else None)
@@ -139,8 +143,22 @@ def run_experiment(config: ExperimentConfig) -> Path:
         _write_json(tmp / "configuration.json", json.loads(config.to_json()))
         _write_json(tmp / "identity.json", identity)
         _write_json(tmp / "data_manifest.json", manifest.as_dict())
-        _write_json(tmp / "metrics.json", performance_metrics(list(result.equity_curve.values())))
-        _write_json(tmp / "benchmark_metrics.json", benchmark_metrics(result.equity_curve, benchmark.equity_curve) if benchmark else {"applicable": False, "reason": "no benchmark configured"})
+        trade_rows = [{"date": trade.trade_date, "symbol": trade.symbol, "side": trade.side, "quantity": trade.quantity,
+                       "price": trade.price, "commission": trade.commission}
+                      for trade in result.trades]
+        metrics = performance_metrics(list(result.equity_curve.values()))
+        metrics.update(execution_statistics(trade_rows, config.initial_cash))
+        metrics.update({"order_count": len(result.orders),
+                        "rejected_order_count": len(result.rejections),
+                        "gross_exposure": sum(sum(abs(x) for x in weights.values())
+                                              for weights in result.weights_by_date.values()) / len(result.weights_by_date),
+                        "net_exposure": sum(sum(weights.values())
+                                            for weights in result.weights_by_date.values()) / len(result.weights_by_date)})
+        if abs(metrics["turnover"] - result.turnover) > 1e-12:
+            raise ValueError("primary metrics turnover does not reconcile with backtest result")
+        _write_json(tmp / "metrics.json", metrics)
+        _write_json(tmp / "benchmark_metrics.json", benchmark_metrics(result.equity_curve, benchmark.equity_curve) if benchmark else {"applicable": False, "reason": "benchmark type is none"})
+        _write_json(tmp / "resolved_benchmark.json", config.benchmark_definitions)
         _write_json(tmp / "split_definitions.json", config.split_definitions)
         _write_json(tmp / "selected_parameters.json", {"applicable": False, "reason": "no parameter selection configured"})
         _write_json(tmp / "fold_results.json", {"applicable": False, "folds": []})
@@ -159,8 +177,14 @@ def run_experiment(config: ExperimentConfig) -> Path:
         for day in result.equity_curve:
             for symbol in config.universe:
                 if day in by_date[symbol]: last[symbol] = by_date[symbol][day].close
-                marks.append({"date": day, "symbol": symbol, "close": last[symbol]})
-            reconstructed = result.cash_curve[day] + sum(result.positions_by_date[day][s] * last[s] for s in config.universe)
+                available = symbol in last
+                marks.append({"date": day, "symbol": symbol,
+                              "close": last[symbol] if available else "", "available": available})
+                if result.positions_by_date[day][symbol] and not available:
+                    raise ValueError(f"nonzero position has no point-in-time mark: {symbol} on {day}")
+            reconstructed = result.cash_curve[day] + sum(
+                result.positions_by_date[day][s] * last[s]
+                for s in config.universe if s in last)
             if abs(reconstructed - result.equity_curve[day]) > 1e-8:
                 raise ValueError(f"daily accounting identity failed on {day}")
         _write_csv(tmp / "marks.csv", marks)

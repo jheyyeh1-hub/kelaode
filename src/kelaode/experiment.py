@@ -101,16 +101,27 @@ class ExperimentConfig:
             raise ValueError("split_definitions.type must be none, fixed, rolling, or expanding")
         if split_type == "none" and not self.split_definitions.get("reason"):
             raise ValueError("a no-fit experiment must document why no split is used")
-        benchmark_keys = {"symbols", "capital", "execution_timing"}
-        if set(self.benchmark_definitions) != benchmark_keys:
-            raise ValueError(f"benchmark_definitions must contain exactly {sorted(benchmark_keys)}")
-        benchmark_symbols = self.benchmark_definitions["symbols"]
-        if not isinstance(benchmark_symbols, list) or not set(benchmark_symbols).issubset(self.universe):
-            raise ValueError("benchmark symbols must be a list drawn from the experiment universe")
-        if self.benchmark_definitions["capital"] != self.initial_cash:
-            raise ValueError("benchmark and strategy must use identical initial capital")
-        if self.benchmark_definitions["execution_timing"] != "next_open":
-            raise ValueError("only aligned next_open benchmark execution is supported")
+        benchmark_type = self.benchmark_definitions.get("type")
+        if benchmark_type == "none":
+            if set(self.benchmark_definitions) != {"type"}:
+                raise ValueError("benchmark type 'none' accepts only the type field")
+        elif benchmark_type in {"equal_weight_buy_and_hold", "single_symbol_buy_and_hold"}:
+            symbol_field = "symbols" if benchmark_type == "equal_weight_buy_and_hold" else "symbol"
+            required_benchmark = {"type", symbol_field, "capital", "execution_timing"}
+            if set(self.benchmark_definitions) != required_benchmark:
+                raise ValueError(f"benchmark type {benchmark_type!r} requires exactly {sorted(required_benchmark)}")
+            benchmark_symbols = (self.benchmark_definitions[symbol_field]
+                if symbol_field == "symbols" else [self.benchmark_definitions[symbol_field]])
+            if (not isinstance(benchmark_symbols, list) or not benchmark_symbols or
+                    not all(isinstance(symbol, str) for symbol in benchmark_symbols) or
+                    not set(benchmark_symbols).issubset(self.universe)):
+                raise ValueError("benchmark symbols must be nonempty and drawn from the experiment universe")
+            if self.benchmark_definitions["capital"] != self.initial_cash:
+                raise ValueError("benchmark and strategy must use identical initial capital")
+            if self.benchmark_definitions["execution_timing"] != "next_open":
+                raise ValueError("only aligned next_open benchmark execution is supported")
+        else:
+            raise ValueError("unsupported benchmark type; use none, equal_weight_buy_and_hold, or single_symbol_buy_and_hold")
         # Fail early rather than producing an experiment that cannot be restored.
         _canonical(asdict(self))
 
@@ -448,7 +459,7 @@ REQUIRED_OUTPUTS = ("artifact_manifest.json benchmark_curve.csv benchmark_metric
  "configuration.json contracts.json daily_audits.json data_manifest.json drawdown.csv equity_curve.csv "
  "exposure.csv fills.csv fold_results.json generated_orders.csv identity.json marks.csv metrics.json "
  "orders.csv parameter_results.csv positions.csv rejections.csv runtime.json selected_parameters.json "
- "split_definitions.json trades.csv turnover.csv validated_orders.csv weights.csv").split()
+ "resolved_benchmark.json split_definitions.json trades.csv turnover.csv validated_orders.csv weights.csv").split()
 
 
 def initialize_output(config: ExperimentConfig, metadata_value: Mapping[str, Any] | None = None,

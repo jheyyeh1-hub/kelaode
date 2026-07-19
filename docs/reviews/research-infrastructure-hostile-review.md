@@ -37,3 +37,19 @@ New tests mutate a cached artifact, attempt publication after a failing strategy
 A separate black-box suite now imports only public APIs and derives expectations without production serialization, accounting, or contract helpers. It independently computes the canonical SHA-256, exact fixed-path cash arithmetic, benchmark fill accounting, daily marked equity, and every bundle file hash. It invokes the real CLI in a subprocess and mutates future bars rather than mocking internals.
 
 This review exposed one additional **critical** isolation defect: the validation callback received the complete `Fold`, including test dates. Separate callbacks therefore did not make test access “structurally impossible” as documented. The selection callback now receives an immutable `SelectionFold` with only train, validation, and warm-up dates; the full fold is provided only after selection to the once-only test callback. A black-box regression asserts the validation view has no `test` attribute and that deliberately favorable test metrics cannot alter selection.
+
+## Merge-readiness follow-up against current main
+
+The complete diff was re-read after fetching `main` at `b06037a`. The branch has no PR #9/#10 ancestry and contains no new SIT implementation; the historical PR #8 SIT configuration is isolated under `configs/legacy/` and explicitly non-runnable.
+
+Required defects found and fixed in this pass:
+
+* **High — union pre-listing crash/forward-fill ambiguity:** mark generation indexed a missing last price. Union bundles now encode pre-listing marks as `available=False` with an empty close, accept zero holdings, reject nonzero unmarked holdings, and reconstruct equity using available point-in-time marks only.
+* **High — generic benchmark label hid one hard-coded implementation:** benchmark definitions now use exact tagged variants (`none`, `single_symbol_buy_and_hold`, or `equal_weight_buy_and_hold`), reject extra/type-specific fields, enforce capital/timing, execute only the named behavior, and persist the resolved definition.
+* **High — primary metrics silently omitted execution facts:** runner metrics now reconcile execution count, realized exits, commissions, traded notional, turnover, orders, rejections, and exposure with saved artifacts. Exit-dependent statistics are null when no realized exit exists rather than invented as zero.
+* **High — fixed-path replay admitted impossible long-only paths and non-finite inputs:** negative cash, oversells, empty symbols, missing marks, non-finite cash/costs/prices, and invalid final positions now fail explicitly; short paths require an explicit opt-in.
+* **Medium — old CLI names disappeared:** `grid-search` and `walk-forward` remain discoverable but fail with a schema-2.0 migration message until complete validated runners exist.
+* **Medium — maintained/legacy configuration ambiguity:** every JSON directly under `configs/` loads as schema 2.0; the unmigrated historical SIT draft is documented under `configs/legacy/`. Snapshot schema/example files were also synchronized with the immutable manifest contract.
+* **Medium — no repository CI:** a Python 3.11 GitHub Actions workflow now installs the package and runs full pytest, compile, dependency, and import checks on pull requests and pushes to main.
+
+Independent regressions cover staggered listing dates, missing-mark encoding and accounting, typed benchmark rejection/alignment, metrics-to-CSV reconciliation, legacy CLI errors, maintained-config loading, and adversarial fixed-path inputs. CI status is an external GitHub condition and is not claimed passing until the workflow appears and completes on the pushed head.

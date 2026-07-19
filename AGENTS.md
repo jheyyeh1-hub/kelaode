@@ -7,4 +7,3 @@
 * Avoid result-driven grid expansion and keep strategy implementation, validation, and independent audit as separate tasks.
 * Run the complete test suite and report unresolved limitations.
 * Avoid modifying unrelated files. Never silently swallow exceptions or fall back to another provider or adjustment convention.
-
