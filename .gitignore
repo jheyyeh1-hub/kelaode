@@ -6,5 +6,7 @@ data/market/etf_daily/*.parquet
 data/market/etf_daily/manifest.json
 !data/market/etf_daily/manifest.example.json
 results/
+data/snapshots/
+src/*.egg-info/
 __pycache__/
 *.pyc

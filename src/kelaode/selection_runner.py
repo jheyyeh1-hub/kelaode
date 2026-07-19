@@ -158,7 +158,10 @@ def _metrics(bundle: Path, dates: Sequence[date]) -> dict[str, float]:
         values = [float(r["equity"]) for r in csv.DictReader(stream) if r["date"] in wanted]
     if not values:
         raise ValueError("candidate produced no observations in the validation interval")
-    return performance_metrics(values)
+    with (bundle / "trades.csv").open(newline="", encoding="utf-8") as stream:
+        trades = [{**row, "notional": float(row["price"]) * int(row["quantity"])}
+                  for row in csv.DictReader(stream) if row["date"] in wanted]
+    return performance_metrics(values, trades)
 
 
 def stitch_oos_equity(fold_paths: Sequence[Sequence[Mapping[str, Any]]],
@@ -228,6 +231,9 @@ def _rank(config: ExperimentConfig, rows: list[dict]) -> dict:
             if rule == "canonical_parameters": tie.append(canonical_json(row["parameters"]))
             elif rule.startswith("parameter:"): tie.append(canonical_json(row["parameters"].get(rule.split(":",1)[1])))
             elif rule.startswith("metric:"): tie.append(float(row["validation_metrics"].get(rule.split(":",1)[1], float("inf"))))
+            elif rule == "lower_complexity":
+                p = row["parameters"]
+                tie.append(int(p.get("trend_window") is not None) + int(p.get("volatility_lookback") is not None))
             else: raise ValueError(f"unsupported tie-break rule: {rule}")
         return (primary, *tie, canonical_json(row["parameters"]))
     return min(eligible, key=key)
@@ -263,6 +269,14 @@ def _evaluate(config: ExperimentConfig, manifest: SnapshotManifest, parent: dict
                 start = min((*fold.warmup, *fold.validation))
                 bundle = _child(config, params, start, max(fold.validation), min(fold.validation), directory / "result")
                 row["validation_metrics"] = _metrics(bundle, fold.validation)
+                operators = {"lt":lambda a,b:a<b, "le":lambda a,b:a<=b,
+                             "gt":lambda a,b:a>b, "ge":lambda a,b:a>=b}
+                for rule in config.parameter_selection.get("metric_constraints", []):
+                    actual = row["validation_metrics"].get(rule["metric"])
+                    if actual is None or not operators[rule["operator"]](float(actual), float(rule["value"])):
+                        row["eligible"] = False
+                        row.setdefault("ineligibility_reasons", []).append(
+                            f"{rule['metric']} {rule['operator']} {rule['value']} not satisfied (actual={actual})")
                 row["result_bundle"] = str(bundle.relative_to(directory))
         except Exception as exc:
             row["error"] = f"{type(exc).__name__}: {exc}"

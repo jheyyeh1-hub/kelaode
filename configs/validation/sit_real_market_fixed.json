@@ -1,0 +1,162 @@
+{
+  "allow_mixed_adjustments": false,
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbols": [
+      "510300",
+      "510500",
+      "159915",
+      "512100",
+      "512880",
+      "512480",
+      "518880",
+      "513100",
+      "511010"
+    ],
+    "type": "equal_weight_buy_and_hold"
+  },
+  "constraint_parameters": {
+    "cash_buffer": 0.01,
+    "max_gross_exposure": 1.0,
+    "max_single_weight": 0.5
+  },
+  "constructor_parameters": {},
+  "cost_analysis": {
+    "closed_loop": {
+      "base": {
+        "commission_rate": 0.00025,
+        "minimum_commission": 5,
+        "slippage_rate": 0.0005
+      },
+      "moderate": {
+        "commission_rate": 0.0005,
+        "minimum_commission": 5,
+        "slippage_rate": 0.001
+      },
+      "severe": {
+        "commission_rate": 0.001,
+        "minimum_commission": 10,
+        "slippage_rate": 0.002
+      }
+    },
+    "fixed_path": {
+      "base": {
+        "commission_rate": 0.00025,
+        "minimum_commission": 5,
+        "slippage_rate": 0.0005
+      },
+      "moderate": {
+        "commission_rate": 0.0005,
+        "minimum_commission": 5,
+        "slippage_rate": 0.001
+      },
+      "severe": {
+        "commission_rate": 0.001,
+        "minimum_commission": 10,
+        "slippage_rate": 0.002
+      }
+    }
+  },
+  "data_alignment_mode": "union",
+  "data_manifest": "data/snapshots/sit-20260719/manifest.json",
+  "data_root": "data/snapshots/sit-20260719",
+  "diagnostic_only": false,
+  "end_date": "2026-07-17",
+  "execution_parameters": {
+    "execution_timing": "next_open",
+    "lot_size": 100,
+    "partial_fill_policy": "partial_fill",
+    "participation_rate": 0.1
+  },
+  "experiment_mode": "fixed_selection",
+  "experiment_name": "sit-real-market-fixed-selection-20260719",
+  "fee_parameters": {
+    "commission_rate": 0.00025,
+    "minimum_commission": 5
+  },
+  "initial_cash": 100000,
+  "notes": "Frozen by docs/validation/sit_real_market_protocol.md before final metrics inspection; no investment claim.",
+  "output_directory": "results/sit-real-market-fixed",
+  "parameter_selection": {
+    "failure_policy": "continue",
+    "metric_constraints": [
+      {
+        "metric": "max_drawdown",
+        "operator": "ge",
+        "value": -0.35
+      }
+    ],
+    "minimum_observations": 252,
+    "objective_direction": "maximize",
+    "parameter_constraints": [],
+    "parameter_grid": {
+      "momentum_lookback": [
+        63,
+        126
+      ],
+      "top_k": [
+        2,
+        3
+      ],
+      "trend_window": [
+        null,
+        126
+      ],
+      "volatility_lookback": [
+        null,
+        63
+      ]
+    },
+    "selection_objective": "sharpe",
+    "tie_break_rules": [
+      "metric:turnover",
+      "lower_complexity",
+      "canonical_parameters"
+    ]
+  },
+  "portfolio_constructor": "strategy-native",
+  "random_seed": 0,
+  "resource_limits": {
+    "execution": "serial",
+    "maximum_candidate_count": 16
+  },
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.0005
+  },
+  "split_definitions": {
+    "test_end": "2026-07-17",
+    "test_start": "2023-01-03",
+    "train_end": "2020-06-30",
+    "train_start": "2019-06-12",
+    "type": "fixed",
+    "validation_end": "2022-12-30",
+    "validation_start": "2020-07-01",
+    "warmup_observations": 252
+  },
+  "start_date": "2019-06-12",
+  "strategy_class": "SITMomentumRotationStrategy",
+  "strategy_parameters": {
+    "max_weight": 0.5,
+    "minimum_listing_age": 252,
+    "momentum_lookback": 126,
+    "rebalance_frequency": "monthly",
+    "rebalance_interval": 21,
+    "top_k": 2,
+    "trend_window": null,
+    "volatility_lookback": null
+  },
+  "universe": [
+    "510300",
+    "510500",
+    "159915",
+    "512100",
+    "512880",
+    "512480",
+    "518880",
+    "513100",
+    "511010"
+  ],
+  "warmup_policy": "history_only"
+}
