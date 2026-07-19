@@ -1,0 +1,59 @@
+{
+  "allow_mixed_adjustments": false,
+  "benchmark_definitions": {
+    "capital": 100000,
+    "execution_timing": "next_open",
+    "symbol": "STABLE",
+    "type": "single_symbol_buy_and_hold"
+  },
+  "constraint_parameters": {
+    "cash_buffer": 0.01,
+    "max_gross_exposure": 1.0,
+    "max_single_weight": 1.0
+  },
+  "constructor_parameters": {},
+  "data_alignment_mode": "union",
+  "data_manifest": "tests/fixtures/sit_snapshot/manifest.json",
+  "data_root": "tests/fixtures/sit_snapshot",
+  "diagnostic_only": false,
+  "end_date": "2024-02-08",
+  "execution_parameters": {
+    "execution_timing": "next_open",
+    "lot_size": 100
+  },
+  "experiment_name": "sit-schema-2-synthetic-integration",
+  "fee_parameters": {
+    "commission_rate": 0.001,
+    "minimum_commission": 2.0
+  },
+  "initial_cash": 100000,
+  "notes": "Deterministic synthetic integration fixture; no investment-performance claim",
+  "output_directory": "results/sit-synthetic",
+  "portfolio_constructor": "strategy-native",
+  "random_seed": 42,
+  "schema_version": "2.0",
+  "slippage_parameters": {
+    "slippage_rate": 0.001
+  },
+  "split_definitions": {
+    "reason": "SIT is a fixed-rule strategy with no fitting stage in this integration exercise",
+    "type": "none"
+  },
+  "start_date": "2024-01-24",
+  "strategy_class": "SITMomentumRotationStrategy",
+  "strategy_parameters": {
+    "max_weight": 0.8,
+    "minimum_listing_age": 4,
+    "momentum_lookback": 3,
+    "rebalance_frequency": "interval",
+    "rebalance_interval": 3,
+    "top_k": 2,
+    "trend_window": 3,
+    "volatility_lookback": 3
+  },
+  "universe": [
+    "STABLE",
+    "VOLATILE",
+    "LATE"
+  ]
+}

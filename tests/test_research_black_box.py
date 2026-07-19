@@ -256,5 +256,6 @@ def test_legacy_cli_commands_fail_with_schema2_migration_message(tmp_path, comma
 
 def test_every_maintained_experiment_config_loads():
     maintained = sorted((REPO / "configs").glob("*.json"))
-    assert {path.name for path in maintained} == {"example_momentum.json", "synthetic_example.json"}
+    assert {path.name for path in maintained} == {
+        "example_momentum.json", "sit_synthetic.json", "synthetic_example.json"}
     assert all(ExperimentConfig.from_json(path).schema_version == "2.0" for path in maintained)

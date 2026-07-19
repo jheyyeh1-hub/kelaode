@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "entries": [
+    {
+      "symbol": "STABLE",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/sit_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-01-24",
+      "requested_end": "2024-02-08",
+      "actual_start": "2024-01-24",
+      "actual_end": "2024-02-08",
+      "row_count": 12,
+      "file_format": "csv",
+      "relative_path": "STABLE.csv",
+      "sha256": "0dc4d095365b2eb72a3c33c1b79a07cc03fb9fce3457dfbb3ae8449183df33f3",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "VOLATILE",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/sit_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-01-24",
+      "requested_end": "2024-02-08",
+      "actual_start": "2024-01-24",
+      "actual_end": "2024-02-08",
+      "row_count": 11,
+      "file_format": "csv",
+      "relative_path": "VOLATILE.csv",
+      "sha256": "6ca08f6e9c954f1297afa3a3fffc2e9e9968960bdbd632abdfed87c28aacfcdf",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    },
+    {
+      "symbol": "LATE",
+      "provider": "deterministic-synthetic-fixture",
+      "endpoint": "repository://tests/fixtures/sit_snapshot",
+      "adjustment": "synthetic-unadjusted",
+      "requested_start": "2024-01-24",
+      "requested_end": "2024-02-08",
+      "actual_start": "2024-01-29",
+      "actual_end": "2024-02-08",
+      "row_count": 9,
+      "file_format": "csv",
+      "relative_path": "LATE.csv",
+      "sha256": "f710d493a05bf7e06c625b974b8e2e4027d7ef20accaebd1c601b29a592908c9",
+      "downloaded_at": "2026-07-19T00:00:00+00:00",
+      "schema_version": "1.0"
+    }
+  ]
+}
