@@ -28,6 +28,10 @@ class DailyBar:
     low: float
     close: float
     volume: float
+    previous_close: float | None = None
+    upper_limit: float | None = None
+    lower_limit: float | None = None
+    suspended: bool | None = None
 
     def __post_init__(self) -> None:
         if min(self.open, self.high, self.low, self.close) <= 0:
@@ -36,6 +40,10 @@ class DailyBar:
             raise ValueError("invalid OHLC range")
         if self.volume < 0:
             raise ValueError("volume cannot be negative")
+        for name, value in (("previous_close", self.previous_close),
+                            ("upper_limit", self.upper_limit), ("lower_limit", self.lower_limit)):
+            if value is not None and value <= 0:
+                raise ValueError(f"{name} must be positive when provided")
 
 
 @dataclass(frozen=True)
