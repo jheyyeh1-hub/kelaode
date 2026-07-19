@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -44,8 +45,19 @@ class SnapshotEntry:
             raise ValueError(f"snapshot source metadata is missing: {', '.join(missing)}")
         if self.row_count <= 0 or len(self.sha256) != 64:
             raise ValueError("invalid snapshot row count or SHA-256")
-        for value in (self.requested_start, self.requested_end, self.actual_start, self.actual_end):
-            datetime.fromisoformat(value)
+        if any(character not in "0123456789abcdef" for character in self.sha256.lower()):
+            raise ValueError("SHA-256 must be hexadecimal")
+        requested_start, requested_end, actual_start, actual_end = (
+            datetime.fromisoformat(value) for value in
+            (self.requested_start, self.requested_end, self.actual_start, self.actual_end))
+        downloaded = datetime.fromisoformat(self.downloaded_at)
+        if requested_start > requested_end or actual_start > actual_end:
+            raise ValueError("snapshot date ranges are reversed")
+        if downloaded.tzinfo is None:
+            raise ValueError("download timestamp must include a timezone")
+        relative = Path(self.relative_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("snapshot paths must be relative and cannot traverse data_root")
 
 @dataclass(frozen=True)
 class SnapshotManifest:
@@ -92,6 +104,8 @@ class SnapshotManifest:
         root = Path(root)
         for entry in self.entries:
             path = root / entry.relative_path
+            if root.resolve() not in path.resolve().parents:
+                raise ValueError("snapshot path escapes data_root")
             if not path.is_file():
                 raise ValueError(f"snapshot file missing: {entry.relative_path}")
             if sha256_file(path) != entry.sha256:
@@ -99,15 +113,22 @@ class SnapshotManifest:
             if entry.file_format.lower() != "csv":
                 raise ValueError(f"unsupported validated fixture format: {entry.file_format}")
             with path.open(encoding="utf-8", newline="") as stream:
-                rows = list(csv.DictReader(stream))
+                reader = csv.DictReader(stream)
+                required = {"date", "open", "high", "low", "close", "volume"}
+                if set(reader.fieldnames or ()) != required:
+                    raise ValueError(f"unexpected CSV schema: {entry.relative_path}")
+                rows = list(reader)
             if len(rows) != entry.row_count:
                 raise ValueError(f"snapshot row count mismatch: {entry.relative_path}")
-            dates = [row.get("date", "") for row in rows]
+            dates = [datetime.fromisoformat(row["date"]).date().isoformat() for row in rows]
             if len(dates) != len(set(dates)):
                 raise ValueError(f"duplicate dates: {entry.relative_path}")
+            if dates != sorted(dates):
+                raise ValueError(f"dates are not strictly ordered: {entry.relative_path}")
             if not rows or min(dates) != entry.actual_start or max(dates) != entry.actual_end:
                 raise ValueError(f"snapshot actual date range mismatch: {entry.relative_path}")
             for row in rows:
-                o, h, low, close = (float(row[k]) for k in ("open", "high", "low", "close"))
-                if min(o, h, low, close) <= 0 or h < max(o, close) or low > min(o, close):
+                o, h, low, close, volume = (float(row[k]) for k in ("open", "high", "low", "close", "volume"))
+                if (not all(math.isfinite(x) for x in (o, h, low, close, volume)) or volume < 0 or
+                        min(o, h, low, close) <= 0 or h < max(o, close) or low > min(o, close)):
                     raise ValueError(f"invalid OHLC data: {entry.relative_path} {row.get('date')}")

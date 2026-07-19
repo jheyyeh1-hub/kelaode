@@ -12,6 +12,7 @@ import json
 import platform
 import random
 import subprocess
+import tomllib
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime, timezone
 from importlib import metadata
@@ -65,12 +66,61 @@ class ExperimentConfig:
             raise ValueError("mixed adjustments may only be enabled for diagnostic-only runs")
         if not self.data_manifest or not self.data_root:
             raise ValueError("data_manifest and data_root are required")
+        try:
+            start, end = date.fromisoformat(self.start_date), date.fromisoformat(self.end_date)
+        except ValueError as exc:
+            raise ValueError("start_date and end_date must use YYYY-MM-DD") from exc
+        if start > end:
+            raise ValueError("start_date must not follow end_date")
+        if self.data_alignment_mode not in {"intersection", "union"}:
+            raise ValueError("data_alignment_mode must be intersection or union")
+        for name in ("strategy_parameters", "constructor_parameters", "fee_parameters",
+                     "slippage_parameters", "execution_parameters", "constraint_parameters",
+                     "benchmark_definitions", "split_definitions"):
+            if not isinstance(getattr(self, name), Mapping):
+                raise ValueError(f"{name} must be an object")
+        if self.portfolio_constructor != "strategy-native" or self.constructor_parameters:
+            raise ValueError("only portfolio_constructor='strategy-native' with no constructor parameters is supported")
+        if self.benchmark is not None:
+            raise ValueError("legacy benchmark is unsafe; use benchmark_definitions only")
+        categories = {
+            "fee_parameters": {"commission_rate", "minimum_commission"},
+            "slippage_parameters": {"slippage_rate"},
+            "execution_parameters": {"execution_timing", "lot_size", "participation_rate", "partial_fill_policy"},
+            "constraint_parameters": {"cash_buffer", "max_single_weight", "max_gross_exposure",
+                                      "rebalance_tolerance", "max_order_value"},
+        }
+        for name, allowed in categories.items():
+            unknown_parameters = set(getattr(self, name)) - allowed
+            if unknown_parameters:
+                raise ValueError(f"{name} has unsupported or miscategorized fields: {sorted(unknown_parameters)}")
+        if self.execution_parameters.get("execution_timing") != "next_open":
+            raise ValueError("execution_parameters.execution_timing='next_open' is required")
+        split_type = self.split_definitions.get("type")
+        if split_type not in {"none", "fixed", "rolling", "expanding"}:
+            raise ValueError("split_definitions.type must be none, fixed, rolling, or expanding")
+        if split_type == "none" and not self.split_definitions.get("reason"):
+            raise ValueError("a no-fit experiment must document why no split is used")
+        benchmark_keys = {"symbols", "capital", "execution_timing"}
+        if set(self.benchmark_definitions) != benchmark_keys:
+            raise ValueError(f"benchmark_definitions must contain exactly {sorted(benchmark_keys)}")
+        benchmark_symbols = self.benchmark_definitions["symbols"]
+        if not isinstance(benchmark_symbols, list) or not set(benchmark_symbols).issubset(self.universe):
+            raise ValueError("benchmark symbols must be a list drawn from the experiment universe")
+        if self.benchmark_definitions["capital"] != self.initial_cash:
+            raise ValueError("benchmark and strategy must use identical initial capital")
+        if self.benchmark_definitions["execution_timing"] != "next_open":
+            raise ValueError("only aligned next_open benchmark execution is supported")
         # Fail early rather than producing an experiment that cannot be restored.
         _canonical(asdict(self))
 
     @property
     def experiment_id(self) -> str:
-        return hashlib.sha256(_canonical(asdict(self)).encode()).hexdigest()[:16]
+        raise RuntimeError("a configuration alone has no experiment ID; call experiment_identity with a validated manifest")
+
+    @property
+    def configuration_fingerprint(self) -> str:
+        return hashlib.sha256(_canonical(asdict(self)).encode()).hexdigest()
 
     def to_json(self, path: str | Path | None = None) -> str:
         text = json.dumps(asdict(self), sort_keys=True, indent=2, allow_nan=False)
@@ -301,6 +351,11 @@ def walk_forward_select(
                 "selected_parameters": dict(selected.parameters),
                 "validation_metrics": dict(selected.metrics),
                 "test_metrics": test_metrics,
+                "selection_table": [
+                    {"parameters": dict(candidate.parameters), "metrics": dict(candidate.metrics),
+                     "error": candidate.error, "cached": candidate.cached}
+                    for candidate in candidates
+                ],
             }
         )
     return tuple(output)
@@ -316,14 +371,26 @@ def experiment_metadata(config: ExperimentConfig, manifest_path="", symbols=(), 
 
     try:
         sha = git_sha or subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    except (OSError, subprocess.CalledProcessError):
-        sha = "unknown"
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError("Git commit provenance is required for an experiment") from exc
+    if len(sha) != 40:
+        raise ValueError("Git commit provenance must be a full 40-character SHA")
     manifest = Path(manifest_path) if manifest_path else None
+    source_digest = hashlib.sha256()
+    package_root = Path(__file__).parent
+    for source in sorted(package_root.rglob("*.py")):
+        source_digest.update(str(source.relative_to(package_root)).encode())
+        source_digest.update(source.read_bytes())
+    try:
+        declared_version = tomllib.loads((package_root.parents[1] / "pyproject.toml").read_text())["project"]["version"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError("package version provenance is unavailable") from exc
     return {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit_sha": sha,
         "python_version": platform.python_version(),
-        "kelaode_version": version("kelaode") or "0.1.0",
+        "kelaode_version": version("kelaode") or declared_version,
+        "source_tree_sha256": source_digest.hexdigest(),
         "dependency_versions": dependency_versions or {
             x: version(x) for x in ("numpy", "pandas", "matplotlib")
         },
@@ -363,40 +430,14 @@ def experiment_identity(config: ExperimentConfig, manifest: SnapshotManifest,
     return {"experiment_id": digest, "canonical_inputs": payload}
 
 
-REQUIRED_OUTPUTS = ("metrics.json benchmark_metrics.json equity_curve.csv cash.csv benchmark_curve.csv "
- "drawdown.csv exposure.csv turnover.csv trades.csv orders.csv validated_orders.csv fills.csv "
- "rejections.csv daily_audits.json positions.csv weights.csv parameter_results.csv fold_results.json "
- "selected_parameters.json runtime.json configuration.json identity.json data_manifest.json").split()
+REQUIRED_OUTPUTS = ("artifact_manifest.json benchmark_curve.csv benchmark_metrics.json cash.csv "
+ "configuration.json contracts.json daily_audits.json data_manifest.json drawdown.csv equity_curve.csv "
+ "exposure.csv fills.csv fold_results.json generated_orders.csv identity.json marks.csv metrics.json "
+ "orders.csv parameter_results.csv positions.csv rejections.csv runtime.json selected_parameters.json "
+ "split_definitions.json trades.csv turnover.csv validated_orders.csv weights.csv").split()
 
 
 def initialize_output(config: ExperimentConfig, metadata_value: Mapping[str, Any] | None = None,
                       *, identity: Mapping[str, Any] | None = None) -> Path:
-    """Create an experiment namespace, rejecting stale or partial cache reuse."""
-    random.seed(config.random_seed)
-    ident = dict(identity or {"experiment_id": config.experiment_id})
-    root = Path(config.output_directory) / str(ident["experiment_id"])
-    if root.exists():
-        identity_path = root / "identity.json"
-        if not identity_path.exists() or canonical_json(json.loads(identity_path.read_text())) != canonical_json(ident):
-            raise ValueError("result directory exists without an exact identity match")
-        return root
-    root.mkdir(parents=True)
-    config.to_json(root / "config.json")
-    (root / "metadata.json").write_text(
-        json.dumps(metadata_value or experiment_metadata(config), indent=2) + "\n"
-    )
-    (root / "identity.json").write_text(json.dumps(ident, sort_keys=True, indent=2) + "\n")
-    (root / "configuration.json").write_text(config.to_json() + "\n")
-    for name in REQUIRED_OUTPUTS:
-        path = root / name
-        if path.exists():
-            continue
-        if name.endswith(".json"):
-            path.write_text("{}\n")
-        elif name.endswith(".md"):
-            path.write_text(f"# {config.experiment_name}\n")
-        elif name.endswith(".csv"):
-            path.write_text("")
-        else:
-            raise AssertionError(f"output contract lacks format: {name}")
-    return root
+    """Unsafe legacy placeholder creation was removed in schema 2.0."""
+    raise RuntimeError("initialize_output cannot create auditable results; use runner.run_experiment")

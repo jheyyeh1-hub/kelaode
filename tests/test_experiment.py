@@ -1,4 +1,5 @@
 import json
+import pytest
 from datetime import date, timedelta
 from kelaode.experiment import (
     ExperimentConfig,
@@ -19,25 +20,15 @@ from kelaode.experiment_metrics import (
 
 def config(tmp_path):
     return ExperimentConfig(
-        "x",
-        ("A", "B"),
-        "2020-01-01",
-        "2022-01-01",
-        "S",
-        {"b": 2, "a": 1},
-        "C",
-        {},
-        100,
-        {},
-        {},
-        {},
-        "A",
-        "intersection",
-        7,
-        str(tmp_path),
-        "",
-        data_manifest="manifest.json",
-        data_root="data",
+        experiment_name="x", universe=("A", "B"), start_date="2020-01-01",
+        end_date="2022-01-01", strategy_class="S", strategy_parameters={"b": 2, "a": 1},
+        portfolio_constructor="strategy-native", constructor_parameters={}, initial_cash=100,
+        fee_parameters={}, slippage_parameters={}, execution_parameters={"execution_timing": "next_open"},
+        constraint_parameters={}, benchmark_definitions={
+            "symbols": [], "capital": 100, "execution_timing": "next_open"},
+        data_alignment_mode="intersection", random_seed=7, output_directory=str(tmp_path),
+        split_definitions={"type": "none", "reason": "unit test"},
+        data_manifest="manifest.json", data_root="data", notes="",
     )
 
 
@@ -45,9 +36,9 @@ def test_config_roundtrip_and_stable_id(tmp_path):
     c = config(tmp_path)
     raw = c.to_json()
     restored = ExperimentConfig.from_json(raw)
-    assert restored == c and restored.experiment_id == c.experiment_id
+    assert restored == c and restored.configuration_fingerprint == c.configuration_fingerprint
     reordered = json.dumps(dict(reversed(list(json.loads(raw).items()))))
-    assert ExperimentConfig.from_json(reordered).experiment_id == c.experiment_id
+    assert ExperimentConfig.from_json(reordered).configuration_fingerprint == c.configuration_fingerprint
 
 
 def test_splits_have_no_leakage(tmp_path):
@@ -93,7 +84,9 @@ def test_metadata_and_output_contract(tmp_path):
     c = config(tmp_path)
     meta = experiment_metadata(c)
     assert len(meta["git_commit_sha"]) == 40
-    root = initialize_output(c, meta)
-    assert (root / "config.json").exists() and all(
-        (root / x).exists() for x in REQUIRED_OUTPUTS
-    )
+    with pytest.raises(RuntimeError, match="cannot create auditable results"):
+        initialize_output(c, meta)
+
+def test_configuration_alone_cannot_claim_complete_experiment_identity(tmp_path):
+    with pytest.raises(RuntimeError, match="configuration alone"):
+        _ = config(tmp_path).experiment_id

@@ -8,9 +8,8 @@ from .runner import run_experiment
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m kelaode.experiment_cli")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "grid-search", "walk-forward"):
-        p = sub.add_parser(name)
-        p.add_argument("--config", required=True)
+    p = sub.add_parser("run")
+    p.add_argument("--config", required=True)
     args = parser.parse_args(argv)
     config = ExperimentConfig.from_json(args.config)
     path = run_experiment(config)

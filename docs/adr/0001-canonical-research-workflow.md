@@ -8,8 +8,8 @@ Every experiment follows one shared lineage:
 
 1. A strict JSON configuration names the ordered universe, immutable snapshot manifest, strategy and complete parameters, portfolio constructor, constraints, capital, costs, execution, benchmark, splits, and output root.
 2. `SnapshotManifest.validate` verifies source metadata, adjustment consistency, file existence, exact SHA-256, row counts, dates, uniqueness, and OHLC invariants **before** a strategy is instantiated.
-3. The identity hashes the complete resolved configuration, manifest and each file hash, package and dependency versions, Python version, Git commit, and schema version. A matching directory is reusable only when its persisted identity is byte-for-byte equivalent.
-4. The shared runner performs the backtest and writes stable JSON/CSV audit artifacts. Configuration, identity, manifest, and runtime provenance connect every output to its inputs. Charts are optional derived presentation, never empty contract placeholders.
+3. The identity hashes the complete resolved configuration, manifest and each file hash, package source-tree hash, package and dependency versions, Python version, Git commit, and schema version. A matching directory is reusable only when its persisted identity and every artifact hash are exact.
+4. The shared runner performs the backtest and atomically publishes stable JSON/CSV audit artifacts plus an artifact manifest. Configuration, identity, input manifest, daily marks, and runtime provenance connect every output to its inputs. Charts are optional derived presentation, never empty contract placeholders.
 5. Validation selects parameters without test access. Parameters are frozen before each test callback; fold boundaries, the full selection table, validation metrics, test metrics, and OOS curves belong in the result bundle. A non-fittable strategy describes its split as evaluation, not training.
 
 ## Cost semantics
@@ -28,5 +28,4 @@ Version 1 configurations must be migrated explicitly: add `schema_version`, `dat
 
 ## Boundaries and limitations
 
-The built-in runner currently registers only shared daily strategies, CSV snapshots, and the daily portfolio engine. It does not download data, provide a live broker, handle minute bars, or infer vendor conventions. Benchmark definitions are identity-bearing; a configured benchmark executor and parameter-search artifact adapter remain explicit future extensions rather than silent approximations.
-
+The built-in runner currently registers only shared daily strategies, CSV snapshots, no-fit runs, and the daily portfolio engine. It does not download data, provide a live broker, handle minute bars, or infer vendor conventions. Configured benchmarks run with the same capital, daily calendar, costs, and next-open timing. A generic parameter-search artifact adapter remains an explicit future extension rather than a silent approximation.
