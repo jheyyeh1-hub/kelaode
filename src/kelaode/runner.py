@@ -100,6 +100,8 @@ def _strategy(config: ExperimentConfig):
 
 def run_experiment(config: ExperimentConfig) -> Path:
     """Validate, execute, and atomically publish one daily no-fit experiment."""
+    if config.experiment_mode != "run":
+        raise ValueError("run_experiment requires experiment_mode=run")
     if config.split_definitions["type"] != "none":
         raise ValueError("run supports only no-fit experiments; use the explicit validation/walk-forward API for splits")
     started = time.monotonic()
