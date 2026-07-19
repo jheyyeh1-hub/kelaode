@@ -166,3 +166,21 @@ def test_frozen_sit_files_are_byte_identical_to_merge_baseline():
     }
     assert {name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
             for name in expected} == expected
+
+
+def test_failed_real_market_report_is_anchored_and_mechanically_reproduced():
+    persisted = json.loads(Path(
+        "docs/validation/tsmom_real_market_judgment_inputs.json").read_text())
+    report = Path("docs/validation/tsmom_real_market_report.md").read_text()
+    policy = json.loads(POLICY.read_text())
+    anchor = persisted["preregistration_anchor"]
+    assert persisted["execution_status"] == "FAILED_DATA_INTEGRITY"
+    assert persisted["strategy_judgment"] == evaluate_tsmom_judgment(
+        persisted["metrics"], persisted["thresholds"]) == "FAIL"
+    assert persisted["thresholds"] == policy["thresholds"]
+    assert anchor["snapshot_manifest_sha256"] == policy["snapshot_reuse"]["manifest_sha256"]
+    assert {name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+            for name in anchor["frozen_file_sha256"]} == anchor["frozen_file_sha256"]
+    assert "Candidates evaluated: **0**, not 72" in report
+    assert "SIT was not rerun" in report
+    assert "execution_status = FAILED_DATA_INTEGRITY" in report
