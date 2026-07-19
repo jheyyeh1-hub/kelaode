@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import shutil
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from kelaode.experiment import ExperimentConfig
+from kelaode.experiment_metrics import benchmark_metrics, performance_metrics
 from kelaode.market_data import AKShareETFDownloader
 from kelaode.selection_runner import run_fixed_selection, run_walk_forward
 from kelaode.snapshot import SnapshotManifest, sha256_file
@@ -27,7 +29,9 @@ def _config(tmp_path: Path, mode="fixed_selection") -> ExperimentConfig:
     config = ExperimentConfig.from_json(name)
     scenarios = {"base": {"commission_rate": .001, "minimum_commission": 2, "slippage_rate": .001},
                  "moderate": {"commission_rate": .002, "minimum_commission": 3, "slippage_rate": .002}}
-    return replace(config, output_directory=str(tmp_path / "results"),
+    benchmark = {"type": "equal_weight_buy_and_hold", "symbols": list(config.universe),
+                 "capital": config.initial_cash, "execution_timing": "next_open"}
+    return replace(config, output_directory=str(tmp_path / "results"), benchmark_definitions=benchmark,
                    cost_analysis={"closed_loop": scenarios, "fixed_path": scenarios})
 
 
@@ -152,6 +156,22 @@ def test_turnover_and_fixed_path_mutations_are_detected(sealed_fixed, mutation, 
         audit_selection(root, policy)
 
 
+def test_equivalent_numeric_trade_formatting_reconciles(sealed_fixed):
+    root, policy = sealed_fixed
+    result = json.loads((root / "result.json").read_text())
+    trades_path = root / result["frozen_test_bundle"] / "trades.csv"
+    with trades_path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+        fields = tuple(rows[0])
+    rows[0]["commission"] += "0" if "." in rows[0]["commission"] else ".0"
+    with trades_path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    _reseal(root)
+    assert audit_selection(root, policy)["status"] == "pass"
+
+
 def test_official_prelisting_position_and_benchmark_mismatch_are_detected(sealed_fixed):
     root, policy = sealed_fixed
     bad_policy = policy.with_name("future-policy.json")
@@ -169,6 +189,48 @@ def test_benchmark_date_mismatch_is_detected(sealed_fixed):
     lines = curve.read_text().splitlines(); curve.write_text("\n".join(lines[:-1]) + "\n")
     _reseal(root)
     with pytest.raises(ValueError, match="benchmark dates"):
+        audit_selection(root, policy)
+
+
+def test_cash_only_equal_weight_benchmark_is_rejected(sealed_fixed):
+    root, policy = sealed_fixed
+    result = json.loads((root / "result.json").read_text())
+    bundle = root / result["frozen_test_bundle"]
+    curve = list(csv.DictReader((bundle / "benchmark_curve.csv").open()))
+    for row in curve:
+        row["equity"] = "100000"
+    with (bundle / "benchmark_curve.csv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=("date", "equity")); writer.writeheader(); writer.writerows(curve)
+    strategy = {r["date"]: float(r["equity"]) for r in csv.DictReader((bundle / "equity_curve.csv").open())}
+    cash = {r["date"]: 100000.0 for r in curve}
+    saved = benchmark_metrics(strategy, cash)
+    standalone = performance_metrics(list(cash.values()))
+    saved.update({f"benchmark_{name}": standalone[name] for name in ("total_return", "annualized_volatility")})
+    (bundle / "benchmark_metrics.json").write_text(json.dumps(saved))
+    _reseal(root)
+    with pytest.raises(ValueError, match="zero-volatility cash curve"):
+        audit_selection(root, policy)
+
+
+def test_benchmark_excess_return_mutation_is_detected(sealed_fixed):
+    root, policy = sealed_fixed
+    result = json.loads((root / "result.json").read_text())
+    metrics = root / result["frozen_test_bundle"] / "benchmark_metrics.json"
+    _mutate_json(metrics, lambda value: value.update({"excess_return": value["excess_return"] + .01}))
+    _reseal(root)
+    with pytest.raises(ValueError, match="benchmark metric excess_return"):
+        audit_selection(root, policy)
+
+
+def test_benchmark_accounting_mutation_is_detected(sealed_fixed):
+    root, policy = sealed_fixed
+    result = json.loads((root / "result.json").read_text())
+    cash_path = root / result["frozen_test_bundle"] / "benchmark_cash.csv"
+    rows = list(csv.DictReader(cash_path.open())); rows[-1]["cash"] = str(float(rows[-1]["cash"]) + 1)
+    with cash_path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=("date", "cash")); writer.writeheader(); writer.writerows(rows)
+    _reseal(root)
+    with pytest.raises(ValueError, match="benchmark accounting"):
         audit_selection(root, policy)
 
 

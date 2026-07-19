@@ -1,0 +1,35 @@
+{
+  "diagnostic_status": "INCOMPLETE",
+  "judgment_function": "evaluate_strategy_judgment(...)",
+  "judgment_status": "PROVISIONAL",
+  "metrics": {
+    "audits_pass": true,
+    "diagnostic_status": "INCOMPLETE",
+    "evaluated": true,
+    "frozen_test_excess_return": -0.02696946008528811,
+    "frozen_test_return": 0.6133677934147121,
+    "moderate_equity_ratio": 0.9914713900794787,
+    "post_result_protocol_change": false,
+    "severe_equity_ratio": 0.8703962038248126,
+    "stitched_max_drawdown": -0.18885492807755855,
+    "stitched_oos_return": 0.2087338448268714
+  },
+  "missing_diagnostics": [
+    "maximum positive P&L contribution share by ETF/calendar year",
+    "adjacent one-factor frozen-test excess-return sign reversal"
+  ],
+  "schema_version": "2.0",
+  "strategy_judgment": "CONDITIONAL",
+  "thresholds": {
+    "conditional_contribution_share_gt": 0.6,
+    "conditional_severe_equity_ratio_lt": 0.9,
+    "fail_frozen_test_return_le": -0.2,
+    "fail_moderate_equity_ratio_lt": 0.9,
+    "fail_stitched_max_drawdown_lt": -0.5,
+    "fail_stitched_oos_return_le": -0.2,
+    "pass_frozen_test_excess_return_gt": 0.0,
+    "pass_moderate_equity_ratio_ge": 0.95,
+    "pass_stitched_max_drawdown_ge": -0.35,
+    "pass_stitched_oos_return_gt": 0.0
+  }
+}

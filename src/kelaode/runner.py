@@ -20,7 +20,7 @@ from .strategy_registry import create_strategy
 from .execution import ExcessVolumePolicy
 from .snapshot import SnapshotManifest, canonical_json, sha256_file
 
-BUNDLE_SCHEMA_VERSION = "1.0"
+BUNDLE_SCHEMA_VERSION = "1.1"
 ARTIFACT_COLUMNS = {
     "equity_curve.csv": ("date", "equity"), "cash.csv": ("date", "cash"),
     "positions.csv": ("date", "symbol", "quantity"),
@@ -35,6 +35,12 @@ ARTIFACT_COLUMNS = {
     "exposure.csv": ("date", "gross_exposure", "net_exposure"),
     "turnover.csv": ("turnover",), "drawdown.csv": ("date", "drawdown"),
     "benchmark_curve.csv": ("date", "equity"),
+    "benchmark_cash.csv": ("date", "cash"),
+    "benchmark_positions.csv": ("date", "symbol", "quantity"),
+    "benchmark_marks.csv": ("date", "symbol", "close", "available"),
+    "benchmark_weights.csv": ("date", "symbol", "target_weight"),
+    "benchmark_orders.csv": ("date", "signal_date", "symbol", "side", "requested_quantity", "filled_quantity", "status", "reason"),
+    "benchmark_fills.csv": ("date", "order_id", "symbol", "side", "quantity", "price", "commission", "stamp_duty"),
     "parameter_results.csv": ("applicable", "parameters", "validation_metrics", "error"),
 }
 JSON_ARTIFACTS = ("configuration.json", "identity.json", "data_manifest.json", "metrics.json",
@@ -125,7 +131,8 @@ def run_experiment(config: ExperimentConfig) -> Path:
         tuple(config.benchmark_definitions["symbols"]) if benchmark_type == "equal_weight_buy_and_hold" else
         (config.benchmark_definitions["symbol"],))
     benchmark = (PortfolioBacktester(engine_config).run(
-        {symbol: data[symbol] for symbol in benchmark_symbols}, EqualWeightBuyAndHold(benchmark_symbols),
+        {symbol: data[symbol] for symbol in benchmark_symbols},
+        EqualWeightBuyAndHold(benchmark_symbols, execution_start=execution_start),
         execution_start=execution_start)
         if benchmark_symbols else None)
     if benchmark and tuple(result.equity_curve) != tuple(benchmark.equity_curve):
@@ -152,7 +159,14 @@ def run_experiment(config: ExperimentConfig) -> Path:
         if abs(metrics["turnover"] - result.turnover) > 1e-12:
             raise ValueError("primary metrics turnover does not reconcile with backtest result")
         _write_json(tmp / "metrics.json", metrics)
-        _write_json(tmp / "benchmark_metrics.json", benchmark_metrics(result.equity_curve, benchmark.equity_curve) if benchmark else {"applicable": False, "reason": "benchmark type is none"})
+        if benchmark:
+            benchmark_report = benchmark_metrics(result.equity_curve, benchmark.equity_curve)
+            standalone = performance_metrics(list(benchmark.equity_curve.values()))
+            benchmark_report.update({f"benchmark_{name}": standalone[name]
+                                     for name in ("total_return", "annualized_volatility")})
+        else:
+            benchmark_report = {"applicable": False, "reason": "benchmark type is none"}
+        _write_json(tmp / "benchmark_metrics.json", benchmark_report)
         _write_json(tmp / "resolved_benchmark.json", config.benchmark_definitions)
         _write_json(tmp / "split_definitions.json", config.split_definitions)
         _write_json(tmp / "selected_parameters.json", {"applicable": False, "reason": "no parameter selection configured"})
@@ -212,6 +226,29 @@ def run_experiment(config: ExperimentConfig) -> Path:
             drawdowns.append({"date": day, "drawdown": equity / peak - 1})
         _write_csv(tmp / "drawdown.csv", drawdowns)
         _write_csv(tmp / "benchmark_curve.csv", ({"date": d, "equity": e} for d, e in (benchmark.equity_curve.items() if benchmark else ())))
+        _write_csv(tmp / "benchmark_cash.csv", ({"date": d, "cash": c} for d, c in (benchmark.cash_curve.items() if benchmark else ())))
+        _write_csv(tmp / "benchmark_positions.csv", ({"date": d, "symbol": s, "quantity": q}
+                   for d, positions in (benchmark.positions_by_date.items() if benchmark else ())
+                   for s, q in positions.items()))
+        benchmark_marks, benchmark_last = [], {}
+        for day in (benchmark.equity_curve if benchmark else ()):
+            for symbol in benchmark_symbols:
+                if day in by_date[symbol]:
+                    benchmark_last[symbol] = by_date[symbol][day].close
+                benchmark_marks.append({"date": day, "symbol": symbol,
+                    "close": benchmark_last.get(symbol, ""), "available": symbol in benchmark_last})
+        _write_csv(tmp / "benchmark_marks.csv", benchmark_marks)
+        _write_csv(tmp / "benchmark_weights.csv", ({"date": audit.trade_date, "symbol": symbol,
+                   "target_weight": audit.strategy_target.get(symbol, 0.0)}
+                   for audit in (benchmark.daily_audits if benchmark else ()) for symbol in benchmark_symbols))
+        _write_csv(tmp / "benchmark_orders.csv", ({"date": order.trade_date, "signal_date": order.signal_date,
+                   "symbol": order.symbol, "side": order.side, "requested_quantity": order.requested_quantity,
+                   "filled_quantity": order.filled_quantity, "status": order.status, "reason": order.reason or ""}
+                   for order in (benchmark.orders if benchmark else ())))
+        _write_csv(tmp / "benchmark_fills.csv", ({"date": audit.trade_date, "order_id": fill.order_id,
+                   "symbol": fill.symbol, "side": fill.side.value, "quantity": fill.quantity,
+                   "price": fill.price, "commission": fill.commission, "stamp_duty": fill.stamp_duty}
+                   for audit in (benchmark.daily_audits if benchmark else ()) for fill in audit.fills))
         _write_csv(tmp / "parameter_results.csv", [{"applicable": False, "parameters": "{}",
                    "validation_metrics": "{}", "error": "no parameter selection configured"}])
         artifacts = {name: sha256_file(tmp / name) for name in sorted(set(ARTIFACT_COLUMNS) | set(JSON_ARTIFACTS))}

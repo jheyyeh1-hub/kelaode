@@ -187,7 +187,9 @@ def test_bundle_contract_is_complete_and_every_declared_hash_is_independent(tmp_
         "benchmark_metrics.json", "equity_curve.csv", "cash.csv", "positions.csv", "marks.csv",
         "weights.csv", "generated_orders.csv", "orders.csv", "validated_orders.csv", "rejections.csv",
         "fills.csv", "trades.csv", "exposure.csv", "turnover.csv", "drawdown.csv",
-        "benchmark_curve.csv", "split_definitions.json", "selected_parameters.json",
+        "benchmark_curve.csv", "benchmark_cash.csv", "benchmark_positions.csv", "benchmark_marks.csv",
+        "benchmark_weights.csv", "benchmark_orders.csv", "benchmark_fills.csv",
+        "split_definitions.json", "selected_parameters.json",
         "parameter_results.csv", "fold_results.json", "daily_audits.json", "runtime.json", "contracts.json",
         "resolved_benchmark.json"}
     manifest = json.loads((bundle / "artifact_manifest.json").read_text())

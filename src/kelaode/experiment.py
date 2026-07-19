@@ -553,7 +553,8 @@ def experiment_identity(config: ExperimentConfig, manifest: SnapshotManifest,
     return {"experiment_id": digest, "canonical_inputs": payload}
 
 
-REQUIRED_OUTPUTS = ("artifact_manifest.json benchmark_curve.csv benchmark_metrics.json cash.csv "
+REQUIRED_OUTPUTS = ("artifact_manifest.json benchmark_cash.csv benchmark_curve.csv benchmark_fills.csv "
+ "benchmark_marks.csv benchmark_metrics.json benchmark_orders.csv benchmark_positions.csv benchmark_weights.csv cash.csv "
  "configuration.json contracts.json daily_audits.json data_manifest.json drawdown.csv equity_curve.csv "
  "exposure.csv fills.csv fold_results.json generated_orders.csv identity.json marks.csv metrics.json "
  "orders.csv parameter_results.csv positions.csv rejections.csv runtime.json selected_parameters.json "

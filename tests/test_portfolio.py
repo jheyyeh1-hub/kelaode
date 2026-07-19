@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from kelaode import (
-    CrossSectionalMomentumStrategy, ETFFeeModel, MarketView,
+    CrossSectionalMomentumStrategy, EqualWeightBuyAndHold, ETFFeeModel, MarketView,
     PeriodicEqualWeightRebalance, PortfolioBacktestConfig, PortfolioBacktester,
 )
 from kelaode.market_data import DailyBar
@@ -38,6 +38,22 @@ def test_two_assets_equal_weight_and_next_open_execution():
     assert [(t.trade_date, t.symbol, t.quantity) for t in result.trades] == [
         (date(2024, 1, 2), "A", 500), (date(2024, 1, 2), "B", 200)]
     assert result.positions_by_date[date(2024, 1, 2)] == {"A": 500, "B": 200}
+
+
+def test_buy_and_hold_waits_through_warmup_and_invests_once_after_eligibility():
+    start = date(2024, 1, 1)
+    data = {"A": bars([10, 10, 11, 12, 13], start),
+            "B": bars([20, 20, 21, 22], start + timedelta(days=1))}
+    execution_start = start + timedelta(days=1)
+    result = engine().run(data, EqualWeightBuyAndHold(("A", "B"), execution_start),
+                          execution_start=execution_start)
+    assert all(order.trade_date > order.signal_date >= execution_start for order in result.orders)
+    assert not any(quantity for day, positions in result.positions_by_date.items()
+                   if day < execution_start for quantity in positions.values())
+    assert {trade.symbol for trade in result.trades} == {"A", "B"}
+    assert len(result.trades) == 2  # no periodic rebalancing after establishment
+    assert any(result.positions_by_date[max(result.positions_by_date)].values())
+    assert len(set(result.equity_curve.values())) > 1
 
 
 def test_sell_before_buy_and_mapping_order_determinism():

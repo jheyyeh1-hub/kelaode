@@ -72,9 +72,15 @@ def _audit_run(bundle: Path, official_listing: Mapping[str, str], test_dates: Se
     checks.append("equity_equals_cash_plus_marked_positions")
 
     fills_rows, trades_rows = _rows(bundle / "fills.csv"), _rows(bundle / "trades.csv")
-    fill_fields = ("date", "symbol", "side", "quantity", "price", "commission")
-    if [tuple(r[k] for k in fill_fields) for r in fills_rows] != [tuple(r[k] for k in fill_fields) for r in trades_rows]:
+    fill_keys = ("date", "symbol", "side")
+    if len(fills_rows) != len(trades_rows):
         raise ValueError("trades do not reconcile with fills")
+    for fill, trade in zip(fills_rows, trades_rows):
+        if (tuple(fill[k] for k in fill_keys) != tuple(trade[k] for k in fill_keys) or
+                int(fill["quantity"]) != int(trade["quantity"])):
+            raise ValueError("trades do not reconcile with fills")
+        for field in ("price", "commission"):
+            _close(float(fill[field]), float(trade[field]), f"trade/fill {field}")
     checks.append("trades_reconcile_with_fills")
 
     execution_start = child_config.get("execution_start_date")
@@ -106,7 +112,49 @@ def _audit_run(bundle: Path, official_listing: Mapping[str, str], test_dates: Se
         equity, {r["date"]: float(r["equity"]) for r in benchmark_rows})
     for name, value in reconstructed_benchmark.items():
         _close(float(saved_benchmark[name]), float(value), f"benchmark metric {name}", 1e-10)
-    checks.extend(("benchmark_date_alignment", "benchmark_metrics_reconstruction"))
+    benchmark_values = [float(r["equity"]) for r in benchmark_rows]
+    benchmark_performance = performance_metrics(benchmark_values)
+    for name in ("total_return", "annualized_volatility"):
+        _close(float(saved_benchmark[f"benchmark_{name}"]), float(benchmark_performance[name]),
+               f"benchmark standalone metric {name}", 1e-10)
+    if child_config["benchmark_definitions"].get("type") == "equal_weight_buy_and_hold":
+        execution_start = child_config.get("execution_start_date")
+        benchmark_cash = {r["date"]: float(r["cash"]) for r in _rows(bundle / "benchmark_cash.csv")}
+        benchmark_positions = {(r["date"], r["symbol"]): int(r["quantity"])
+                               for r in _rows(bundle / "benchmark_positions.csv")}
+        benchmark_marks = {(r["date"], r["symbol"]): (float(r["close"]) if r["close"] else None)
+                           for r in _rows(bundle / "benchmark_marks.csv")}
+        benchmark_orders, benchmark_fills = (_rows(bundle / "benchmark_orders.csv"),
+                                              _rows(bundle / "benchmark_fills.csv"))
+        if not benchmark_orders or not benchmark_fills or not any(benchmark_positions.values()):
+            raise ValueError("equal-weight buy-and-hold benchmark has no orders, fills, or positions")
+        if len(set(benchmark_values)) == 1 or benchmark_performance["annualized_volatility"] == 0:
+            raise ValueError("equal-weight buy-and-hold benchmark is a zero-volatility cash curve")
+        if any(r["date"] < execution_start for r in benchmark_orders + benchmark_fills):
+            raise ValueError("benchmark warm-up order or fill detected")
+        if any(quantity and day < execution_start for (day, _), quantity in benchmark_positions.items()):
+            raise ValueError("benchmark warm-up position detected")
+        first_signal = min(r["signal_date"] for r in benchmark_orders)
+        first_execution = min(r["date"] for r in benchmark_orders)
+        if first_signal < execution_start or first_execution <= first_signal:
+            raise ValueError("benchmark signal/execution boundary is invalid")
+        target_rows = [r for r in _rows(bundle / "benchmark_weights.csv")
+                       if r["date"] == first_signal and float(r["target_weight"]) > 0]
+        expected_symbols = child_config["benchmark_definitions"]["symbols"]
+        if ({r["symbol"] for r in target_rows} != set(expected_symbols) or
+                any(not math.isclose(float(r["target_weight"]), 1 / len(expected_symbols),
+                                     rel_tol=0, abs_tol=1e-12) for r in target_rows)):
+            raise ValueError("benchmark initial target weights are not equal across configured symbols")
+        for day, value in zip(benchmark_dates, benchmark_values):
+            reconstructed = benchmark_cash[day] + sum(
+                quantity * (benchmark_marks[(day, symbol)] or 0.0)
+                for (position_day, symbol), quantity in benchmark_positions.items() if position_day == day)
+            _close(reconstructed, value, f"benchmark accounting on {day}")
+        checks.extend(("benchmark_nonconstant_invested_curve", "benchmark_orders_fills_positions",
+                       "no_benchmark_warmup_activity", "benchmark_signal_execution_boundary",
+                       "benchmark_equal_initial_targets", "benchmark_accounting_reconstruction"))
+    checks.extend(("benchmark_date_alignment", "benchmark_total_return_reconstruction",
+                   "benchmark_metrics_reconstruction", "strategy_excess_return_reconstruction"))
 
     wanted = set(test_dates)
     test_equity = [float(r["equity"]) for r in equity_rows if r["date"] in wanted]

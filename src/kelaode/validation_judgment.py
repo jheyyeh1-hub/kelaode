@@ -18,8 +18,7 @@ def evaluate_strategy_judgment(metrics: Mapping[str, Any] | None,
     required = {
         "audits_pass", "frozen_test_return", "frozen_test_excess_return",
         "stitched_oos_return", "stitched_max_drawdown", "moderate_equity_ratio",
-        "severe_equity_ratio", "max_positive_contribution_share",
-        "neighbor_sign_reversal", "post_result_protocol_change",
+        "severe_equity_ratio", "post_result_protocol_change",
     }
     missing = required - set(metrics)
     if missing:
@@ -44,6 +43,15 @@ def evaluate_strategy_judgment(metrics: Mapping[str, Any] | None,
     )
     if fail:
         return "FAIL"
+    diagnostic_status = metrics.get("diagnostic_status", "COMPLETE")
+    if diagnostic_status == "INCOMPLETE":
+        return "CONDITIONAL"
+    if diagnostic_status != "COMPLETE":
+        raise ValueError("diagnostic_status must be COMPLETE or INCOMPLETE")
+    diagnostic_required = {"max_positive_contribution_share", "neighbor_sign_reversal"}
+    diagnostic_missing = diagnostic_required - set(metrics)
+    if diagnostic_missing:
+        raise ValueError(f"judgment metrics missing: {sorted(diagnostic_missing)}")
     conditional = (
         metrics["max_positive_contribution_share"] > thresholds["conditional_contribution_share_gt"]
         or metrics["severe_equity_ratio"] < thresholds["conditional_severe_equity_ratio_lt"]

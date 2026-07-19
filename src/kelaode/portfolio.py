@@ -103,6 +103,11 @@ class MarketView:
     def available_symbols(self) -> tuple[str, ...]:
         return tuple(sorted(self._data))
 
+    def is_available(self, symbol: str) -> bool:
+        """Return whether ``symbol`` has an observation on the current date."""
+        self._check_symbol(symbol)
+        return any(bar.trade_date == self.current_date for bar in self._data[symbol])
+
     @property
     def previous_date(self) -> date | None:
         """Previous observed market date, still bounded by ``current_date``."""
@@ -497,13 +502,21 @@ class PortfolioBacktester:
         return worst
 
 
-@dataclass(frozen=True)
+@dataclass
 class EqualWeightBuyAndHold:
     symbols: Sequence[str]
+    execution_start: date | None = None
+    _initial_target_emitted: bool = False
 
     def target_weights(self, index, date, market, portfolio):
-        if index != 0:
+        if self._initial_target_emitted or (self.execution_start is not None and date < self.execution_start):
             return _HoldTargets()
+        # Wait deterministically until every configured constituent has a bar. This
+        # prevents temporary unavailability from silently turning part (or all) of
+        # the one-shot benchmark allocation into permanent cash.
+        if any(not market.is_available(symbol) for symbol in self.symbols):
+            return _HoldTargets()
+        self._initial_target_emitted = True
         weight = 1 / len(self.symbols)
         return {symbol: weight for symbol in sorted(self.symbols)}
 
