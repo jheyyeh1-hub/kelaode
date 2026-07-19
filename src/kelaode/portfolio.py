@@ -23,8 +23,12 @@ class PortfolioStrategy(Protocol):
     ) -> Mapping[str, float]: ...
 
 
-class _HoldTargets(dict[str, float]):
-    """Internal marker used by baseline strategies when no rebalance is due."""
+class HoldTargets(dict[str, float]):
+    """Marker returned by strategies when no new complete target is due."""
+
+
+# Kept as an internal alias for compatibility with the original built-in strategies.
+_HoldTargets = HoldTargets
 
 
 class FeeModel(Protocol):
