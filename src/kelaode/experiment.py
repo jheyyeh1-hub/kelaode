@@ -166,6 +166,19 @@ class Fold:
             raise ValueError("test must follow validation")
 
 
+@dataclass(frozen=True)
+class SelectionFold:
+    """The only fold information visible while selecting parameters.
+
+    Deliberately has no test dates, making test-period inspection through the
+    selection callback impossible rather than merely discouraged.
+    """
+
+    train: tuple[date, ...]
+    validation: tuple[date, ...]
+    warmup: tuple[date, ...] = ()
+
+
 def _days(dates: Sequence[date]) -> tuple[date, ...]:
     values = tuple(sorted(set(dates)))
     if not values:
@@ -321,7 +334,7 @@ class GridSearch:
 def walk_forward_select(
     folds: Sequence[Fold],
     search: GridSearch,
-    evaluate_validation: Callable[[Fold, Mapping[str, Any]], Mapping[str, float]],
+    evaluate_validation: Callable[[SelectionFold, Mapping[str, Any]], Mapping[str, float]],
     evaluate_test: Callable[[Fold, Mapping[str, Any]], Mapping[str, float]],
 ) -> tuple[dict[str, Any], ...]:
     """Select on validation and call test exactly once with frozen parameters.
@@ -336,7 +349,8 @@ def walk_forward_select(
         if tuple(sorted(fold.test)) != fold.test or oos_dates.intersection(fold.test):
             raise ValueError("out-of-sample dates must be unique and ordered")
         oos_dates.update(fold.test)
-        candidates = search.run(lambda p: evaluate_validation(fold, p))
+        selection_view = SelectionFold(fold.train, fold.validation, fold.warmup)
+        candidates = search.run(lambda p: evaluate_validation(selection_view, p))
         selected = search.select(candidates)
         test_metrics = dict(evaluate_test(fold, selected.parameters))
         output.append(

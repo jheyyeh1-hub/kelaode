@@ -10,7 +10,7 @@ Every experiment follows one shared lineage:
 2. `SnapshotManifest.validate` verifies source metadata, adjustment consistency, file existence, exact SHA-256, row counts, dates, uniqueness, and OHLC invariants **before** a strategy is instantiated.
 3. The identity hashes the complete resolved configuration, manifest and each file hash, package source-tree hash, package and dependency versions, Python version, Git commit, and schema version. A matching directory is reusable only when its persisted identity and every artifact hash are exact.
 4. The shared runner performs the backtest and atomically publishes stable JSON/CSV audit artifacts plus an artifact manifest. Configuration, identity, input manifest, daily marks, and runtime provenance connect every output to its inputs. Charts are optional derived presentation, never empty contract placeholders.
-5. Validation selects parameters without test access. Parameters are frozen before each test callback; fold boundaries, the full selection table, validation metrics, test metrics, and OOS curves belong in the result bundle. A non-fittable strategy describes its split as evaluation, not training.
+5. Validation selects parameters through a restricted fold view that contains no test dates. Parameters are frozen before the full fold reaches each test callback; fold boundaries, the full selection table, validation metrics, test metrics, and OOS curves belong in the result bundle. A non-fittable strategy describes its split as evaluation, not training.
 
 ## Cost semantics
 

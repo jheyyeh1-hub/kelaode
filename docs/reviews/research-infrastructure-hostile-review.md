@@ -32,3 +32,8 @@ This review compares the complete branch with `main`. Passing tests was not trea
 
 New tests mutate a cached artifact, attempt publication after a failing strategy lookup, change source provenance, attempt cross-category cost overrides, require explicit marks for open fixed paths, reconstruct accounting on every day, assert benchmark calendar/capital/identity costs, reject ignored constructors and split modes, and verify the complete walk-forward selection table without test-based selection.
 
+## Test-independence follow-up
+
+A separate black-box suite now imports only public APIs and derives expectations without production serialization, accounting, or contract helpers. It independently computes the canonical SHA-256, exact fixed-path cash arithmetic, benchmark fill accounting, daily marked equity, and every bundle file hash. It invokes the real CLI in a subprocess and mutates future bars rather than mocking internals.
+
+This review exposed one additional **critical** isolation defect: the validation callback received the complete `Fold`, including test dates. Separate callbacks therefore did not make test access “structurally impossible” as documented. The selection callback now receives an immutable `SelectionFold` with only train, validation, and warm-up dates; the full fold is provided only after selection to the once-only test callback. A black-box regression asserts the validation view has no `test` attribute and that deliberately favorable test metrics cannot alter selection.
