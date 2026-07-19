@@ -87,4 +87,32 @@ manifest 记录数据源、复权方式、请求/实际日期、行数、UTC 下
 仓库仅提交 [`manifest.example.json`](data/market/etf_daily/manifest.example.json)，
 `.gitignore` 会排除真实历史行情。
 
+## 多资产 ETF 组合日频回测
+
+`PortfolioBacktester` 接受 `symbol -> DailyBar 序列`，策略在交易日 t 收盘后通过只读
+`MarketView` 生成完整目标组合（未返回的标的目标权重为 0），并严格在 t+1 开盘先卖后买、
+在 t+1 收盘估值。引擎默认只做多、不使用杠杆，支持整手、最低佣金、滑点、现金缓冲、
+单标的/总仓位上限和再平衡容差。
+
+```python
+from kelaode import (
+    EqualWeightBuyAndHold, ETFFeeModel, PortfolioBacktestConfig,
+    PortfolioBacktester, read_daily_bars,
+)
+
+market = {
+    "510300": read_daily_bars("data/510300.csv"),
+    "510500": read_daily_bars("data/510500.csv"),
+}
+engine = PortfolioBacktester(
+    PortfolioBacktestConfig(initial_cash=200_000, cash_buffer=0.02),
+    ETFFeeModel(commission_rate=0.00025, minimum_commission=5, slippage_rate=0.0005),
+)
+result = engine.run(market, EqualWeightBuyAndHold(tuple(market)))
+print(result.total_return, result.turnover, result.positions_by_date)
+```
+
+另有 `PeriodicEqualWeightRebalance`（按月或每 N 个交易日）和
+`CrossSectionalMomentumStrategy`（只按截至当日的 N 日收益选择 top-k）作为基线策略。
+
 > 提醒：本项目是工程研究原型，不构成投资建议。任何实盘接入前都必须完成合规确认、券商接口授权、仿真验证和小额灰度。

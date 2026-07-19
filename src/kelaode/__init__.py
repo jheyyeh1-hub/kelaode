@@ -10,8 +10,30 @@ from .core import (
 )
 from .backtest import BacktestConfig, BacktestResult, ETFBacktester, MovingAverageCrossStrategy
 from .market_data import (
-    AKShareETFDownloader, DEFAULT_ETF_UNIVERSE, DailyBar, DatasetQuality,
-    MarketDataset, read_daily_bars, validate_bars, write_daily_bars,
+    AKShareETFDownloader,
+    DEFAULT_ETF_UNIVERSE,
+    DailyBar,
+    DatasetQuality,
+    MarketDataset,
+    read_daily_bars,
+    validate_bars,
+    write_daily_bars,
+)
+from .portfolio import (
+    CrossSectionalMomentumStrategy,
+    EqualWeightBuyAndHold,
+    ETFFeeModel,
+    FeeModel,
+    MarketView,
+    PeriodicEqualWeightRebalance,
+    PortfolioBacktestConfig,
+    PortfolioBacktestResult,
+    PortfolioBacktester,
+    PortfolioOrder,
+    PortfolioSnapshot,
+    PortfolioStrategy,
+    PortfolioTrade,
+    Rejection,
 )
 
 __all__ = [
@@ -33,4 +55,18 @@ __all__ = [
     "read_daily_bars",
     "validate_bars",
     "write_daily_bars",
+    "CrossSectionalMomentumStrategy",
+    "EqualWeightBuyAndHold",
+    "ETFFeeModel",
+    "FeeModel",
+    "MarketView",
+    "PeriodicEqualWeightRebalance",
+    "PortfolioBacktestConfig",
+    "PortfolioBacktestResult",
+    "PortfolioBacktester",
+    "PortfolioOrder",
+    "PortfolioSnapshot",
+    "PortfolioStrategy",
+    "PortfolioTrade",
+    "Rejection",
 ]
