@@ -55,6 +55,7 @@ def fixture(tmp_path: Path, *, offline=False):
             "manifest_sha256": sha256_bytes((root / "manifest.json").read_bytes()),
             "canonical_snapshot_identity": manifest["canonical_snapshot_identity"],
             "expected_files": [f"{x}.csv" for x in UNIVERSE] + ["manifest.json"],
+            "expected_ordered_universe": list(UNIVERSE),
             "archive_format": "tar", "cache": {"offline": offline,
                                                         "directory": str(tmp_path / "cache")}}
     spec_path = tmp_path / "spec.json"
@@ -227,3 +228,54 @@ def test_historical_validation_artifacts_are_byte_identical():
     }
     for name, digest in expected.items():
         assert sha256_bytes(Path(name).read_bytes()) == digest
+
+
+def resign_semantic_fixture(root, archive, spec, spec_path, manifest):
+    """Re-sign every integrity layer so rejection proves semantic validation."""
+    write_manifest(root / "manifest.json", manifest)
+    spec["manifest_sha256"] = sha256_bytes((root / "manifest.json").read_bytes())
+    build_archive(archive, root, UNIVERSE)
+    resign_archive(spec, spec_path, archive)
+
+
+@pytest.mark.parametrize("mutation", [
+    "swap_paths", "wrong_symbol_path", "missing_universe", "extra_universe",
+    "duplicate_universe", "entry_order", "missing_entry", "entry_other_csv",
+])
+def test_manifest_symbol_file_binding_mutations_fail_semantically(tmp_path, mutation):
+    root, archive, spec, spec_path = fixture(tmp_path)
+    manifest = json.loads((root / "manifest.json").read_text())
+    if mutation == "swap_paths":
+        manifest["entries"][0]["relative_path"], manifest["entries"][1]["relative_path"] = (
+            manifest["entries"][1]["relative_path"], manifest["entries"][0]["relative_path"])
+    elif mutation == "wrong_symbol_path":
+        manifest["entries"][0]["relative_path"] = "518880.csv"
+    elif mutation == "missing_universe":
+        manifest["ordered_universe"].pop()
+    elif mutation == "extra_universe":
+        manifest["ordered_universe"].append("999999")
+    elif mutation == "duplicate_universe":
+        manifest["ordered_universe"][-1] = manifest["ordered_universe"][0]
+    elif mutation == "entry_order":
+        manifest["entries"][0], manifest["entries"][1] = manifest["entries"][1], manifest["entries"][0]
+    elif mutation == "missing_entry":
+        manifest["entries"].pop()
+    elif mutation == "entry_other_csv":
+        manifest["entries"][0]["relative_path"] = manifest["entries"][1]["relative_path"]
+    resign_semantic_fixture(root, archive, spec, spec_path, manifest)
+    with pytest.raises(ValueError):
+        materialize(spec_path, tmp_path / "output")
+
+
+@pytest.mark.parametrize("mutation", ["arbitrary_csv", "universe_mismatch"])
+def test_package_expected_files_binding_mutations_fail_semantically(tmp_path, mutation):
+    root, archive, spec, spec_path = fixture(tmp_path)
+    manifest = json.loads((root / "manifest.json").read_text())
+    if mutation == "arbitrary_csv":
+        spec["expected_files"][0] = "AAA.csv"
+    else:
+        spec["expected_ordered_universe"][0] = "999999"
+    # Archive and manifest hashes are freshly calculated and still valid.
+    resign_semantic_fixture(root, archive, spec, spec_path, manifest)
+    with pytest.raises(ValueError):
+        materialize(spec_path, tmp_path / "output")

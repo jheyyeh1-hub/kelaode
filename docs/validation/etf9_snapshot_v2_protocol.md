@@ -30,5 +30,10 @@ identity additionally binds the ordered universe and ordered CSV hashes. An
 archive is a deterministic uncompressed POSIX tar with the nine CSVs in universe
 order followed by `manifest.json`.
 
+Package schema `snapshot-package-v2.1` binds `expected_ordered_universe` to the
+same frozen order. Every manifest entry must occur exactly once in that order and
+must bind its non-empty symbol to the exact top-level path `<symbol>.csv`; the
+package's expected-file set must be exactly those nine paths plus `manifest.json`.
+
 This protocol does not authorize a network request, strategy run, performance
 claim, release, or publication. Those require separate reviewed work.

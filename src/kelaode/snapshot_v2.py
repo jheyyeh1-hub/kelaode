@@ -20,9 +20,15 @@ from typing import Any, Iterable, Mapping
 CSV_HEADER = ("date", "open", "high", "low", "close", "volume")
 SERIALIZER_VERSION = "snapshot-csv-v2.0"
 MANIFEST_SCHEMA_VERSION = "snapshot-manifest-v2.0"
-PACKAGE_SCHEMA_VERSION = "snapshot-package-v2.0"
+PACKAGE_SCHEMA_VERSION = "snapshot-package-v2.1"
 ARCHIVE_MEMBERS = ("manifest.json",)  # CSV members precede this in universe order.
 FIXED_MTIME = 0
+
+
+def _is_valid_universe(value: Any) -> bool:
+    return (isinstance(value, (list, tuple)) and len(value) == 9 and
+            all(isinstance(symbol, str) and bool(symbol) for symbol in value) and
+            len(set(value)) == 9)
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -115,8 +121,10 @@ def build_manifest(*, universe: Iterable[str], csv_root: str | Path, protocol_ha
                    metadata: Mapping[str, Mapping[str, Any]],
                    acquisition_attempt_id: str) -> dict[str, Any]:
     symbols = tuple(universe)
-    if len(symbols) != 9 or len(set(symbols)) != 9:
-        raise ValueError("snapshot-v2 requires exactly nine unique ordered symbols")
+    if not _is_valid_universe(symbols):
+        raise ValueError("snapshot-v2 requires exactly nine unique non-empty ordered symbols")
+    if set(metadata) != set(symbols):
+        raise ValueError("metadata symbols must exactly match the ordered universe")
     root = Path(csv_root)
     entries = []
     for symbol in symbols:
@@ -171,7 +179,7 @@ def build_archive(output: str | Path, root: str | Path, universe: Iterable[str])
 
 _SPEC_FIELDS = {"schema_version", "executable", "snapshot_name", "release_tag", "asset_name",
                 "immutable_url", "archive_sha256", "manifest_sha256", "canonical_snapshot_identity",
-                "expected_files", "archive_format", "cache"}
+                "expected_files", "expected_ordered_universe", "archive_format", "cache"}
 
 
 def load_package_spec(path: str | Path) -> dict[str, Any]:
@@ -182,9 +190,15 @@ def load_package_spec(path: str | Path) -> dict[str, Any]:
         raise ValueError("placeholder package spec is explicitly non-executable")
     if raw["archive_format"] != "tar" or set(raw["cache"]) != {"offline", "directory"}:
         raise ValueError("unsupported archive format or cache rules")
+    universe = raw["expected_ordered_universe"]
+    if not isinstance(universe, list) or not _is_valid_universe(universe):
+        raise ValueError("expected_ordered_universe must contain nine unique non-empty symbols")
     expected = raw["expected_files"]
-    if len(expected) != 10 or len(expected) != len(set(expected)) or "manifest.json" not in expected:
-        raise ValueError("expected_files must identify nine CSVs and manifest.json")
+    canonical_files = [f"{symbol}.csv" for symbol in universe] + ["manifest.json"]
+    if (not isinstance(expected, list) or len(expected) != 10 or len(set(expected)) != 10 or
+            any(not isinstance(name, str) or len(PurePosixPath(name).parts) != 1
+                for name in expected) or set(expected) != set(canonical_files)):
+        raise ValueError("expected_files must exactly bind the expected ordered universe CSVs and manifest.json")
     for field in ("archive_sha256", "manifest_sha256", "canonical_snapshot_identity"):
         if len(raw[field]) != 64 or any(c not in "0123456789abcdef" for c in raw[field]):
             raise ValueError(f"invalid {field}")
@@ -263,9 +277,23 @@ def materialize(spec_path: str | Path, output: str | Path) -> None:
             raise ValueError("canonical snapshot identity mismatch")
         if manifest.get("all_symbol_success") is not True or manifest.get("no_fallback") is not True:
             raise ValueError("manifest does not declare complete no-fallback acquisition")
+        universe = manifest.get("ordered_universe")
+        if not isinstance(universe, list) or not _is_valid_universe(universe):
+            raise ValueError("manifest ordered universe must contain nine unique non-empty symbols")
+        if universe != spec["expected_ordered_universe"]:
+            raise ValueError("manifest ordered universe does not match package binding")
         entries = manifest.get("entries")
-        if not isinstance(entries, list) or [x.get("symbol") for x in entries] != manifest.get("ordered_universe"):
-            raise ValueError("manifest entries do not match ordered universe")
+        if (not isinstance(entries, list) or len(entries) != 9 or
+                any(not isinstance(entry, dict) for entry in entries)):
+            raise ValueError("manifest must contain exactly nine entries")
+        entry_symbols = [entry.get("symbol") for entry in entries]
+        entry_paths = [entry.get("relative_path") for entry in entries]
+        expected_paths = [f"{symbol}.csv" for symbol in universe]
+        if (entry_symbols != universe or len(set(entry_symbols)) != 9 or
+                entry_paths != expected_paths):
+            raise ValueError("manifest entry symbols and paths must exactly match ordered universe")
+        if set(spec["expected_files"]) != set(expected_paths + ["manifest.json"]):
+            raise ValueError("package files do not match manifest ordered universe")
         adjustments = {x.get("adjustment") for x in entries}
         if len(adjustments) != 1:
             raise ValueError("mixed adjustment conventions are forbidden")
@@ -277,6 +305,12 @@ def materialize(spec_path: str | Path, output: str | Path) -> None:
         for entry in entries:
             if set(entry) != entry_fields:
                 raise ValueError("manifest entry has unknown or missing fields")
+            symbol = entry["symbol"]
+            relative_path = entry["relative_path"]
+            if (not isinstance(symbol, str) or not symbol or symbol not in universe or
+                    relative_path != f"{symbol}.csv" or
+                    len(PurePosixPath(relative_path).parts) != 1):
+                raise ValueError("manifest symbol-to-file binding is invalid")
             if entry.get("provider") != "AKShare/Eastmoney" or entry.get("endpoint") != "fund_etf_hist_em":
                 raise ValueError("wrong provider metadata")
             if (entry.get("frequency"), entry.get("adjustment"), entry.get("serializer_version"),
