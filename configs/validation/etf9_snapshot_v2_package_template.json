@@ -1,0 +1,18 @@
+{
+  "schema_version": "snapshot-package-v2.1",
+  "executable": false,
+  "snapshot_name": "PLACEHOLDER_NOT_PUBLISHED",
+  "release_tag": "PLACEHOLDER_NOT_PUBLISHED",
+  "asset_name": "PLACEHOLDER_NOT_PUBLISHED.tar",
+  "immutable_url": "PLACEHOLDER_NOT_EXECUTABLE",
+  "archive_sha256": "PLACEHOLDER_NOT_EXECUTABLE",
+  "manifest_sha256": "PLACEHOLDER_NOT_EXECUTABLE",
+  "canonical_snapshot_identity": "PLACEHOLDER_NOT_EXECUTABLE",
+  "expected_files": ["510300.csv", "510500.csv", "159915.csv", "512100.csv", "512880.csv", "512480.csv", "518880.csv", "513100.csv", "511010.csv", "manifest.json"],
+  "expected_ordered_universe": ["510300", "510500", "159915", "512100", "512880", "512480", "518880", "513100", "511010"],
+  "archive_format": "tar",
+  "cache": {
+    "offline": false,
+    "directory": "~/.cache/kelaode/snapshot-v2"
+  }
+}

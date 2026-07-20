@@ -1,0 +1,31 @@
+{
+  "schema_version": "snapshot-acquisition-v2.0",
+  "provider": "AKShare/Eastmoney",
+  "endpoint": "fund_etf_hist_em",
+  "frequency": "daily",
+  "adjustment": "qfq",
+  "requested_start": "2005-01-01",
+  "requested_end": "2026-07-17",
+  "ordered_universe": ["510300", "510500", "159915", "512100", "512880", "512480", "518880", "513100", "511010"],
+  "network": {
+    "timeout_seconds": 30,
+    "retries": 3,
+    "retry_delay_seconds": [1, 2, 4]
+  },
+  "constraints": {
+    "fallback_provider": null,
+    "alternate_endpoint": false,
+    "symbol_substitution": false,
+    "mixed_adjustment": false,
+    "partial_snapshot": false,
+    "complete_attempt_failure": "discard every artifact from the failed attempt"
+  },
+  "csv": {
+    "encoding": "UTF-8",
+    "line_ending": "LF",
+    "header": ["date", "open", "high", "low", "close", "volume"],
+    "date_format": "YYYY-MM-DD",
+    "numeric_format": ".8f",
+    "serializer_version": "snapshot-csv-v2.0"
+  }
+}
